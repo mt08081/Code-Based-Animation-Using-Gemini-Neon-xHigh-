@@ -1,0 +1,3099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shoreline Moon Glitch — Code-Based Animation</title>
+  <style>
+    :root {
+      --bg-deep: #0b0a12;
+      --bg-panel: #141221;
+      --bg-control: #1e1b30;
+      --bg-control-hover: #2a2642;
+      --border-subtle: rgba(203, 219, 252, 0.14);
+      --text-primary: #eef2ff;
+      --text-muted: #98a2c4;
+      --accent-moon: #cbdbfc;
+      --accent-ember: #df7126;
+      --accent-ocean: #3f749b;
+      --accent-wood: #713002;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 50% 25%, rgba(51, 108, 149, 0.14), transparent 55%),
+        radial-gradient(circle at 50% 90%, rgba(98, 41, 0, 0.14), transparent 50%),
+        var(--bg-deep);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+      user-select: none;
+    }
+
+    .studio {
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 4px;
+    }
+
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--text-primary);
+    }
+
+    .act-pill {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(203, 219, 252, 0.1);
+      border: 1px solid rgba(203, 219, 252, 0.22);
+      color: var(--accent-moon);
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .act-pill.invert-active {
+      background: rgba(223, 113, 38, 0.2);
+      border-color: rgba(223, 113, 38, 0.6);
+      color: #ff9f5a;
+    }
+
+    .meta {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .stage-frame {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #000;
+      box-shadow:
+        0 28px 80px rgba(0, 0, 0, 0.72),
+        0 0 0 1px var(--border-subtle);
+    }
+
+    canvas#stage {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .export-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(11, 10, 18, 0.78);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .export-overlay.visible {
+      display: flex;
+    }
+
+    .export-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .export-bar-track {
+      width: 240px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      overflow: hidden;
+    }
+
+    .export-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-ocean), var(--accent-moon));
+      transition: width 0.08s linear;
+    }
+
+    .hud {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .timeline-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .timeline-track {
+      position: relative;
+      height: 10px;
+      border-radius: 999px;
+      background: #0e0d18;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      overflow: visible;
+    }
+
+    .act-segments {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      border-radius: 999px;
+      overflow: hidden;
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .seg-1 { width: 24.44%; background: #336c95; }
+    .seg-2 { width: 33.33%; background: #6b5fa8; }
+    .seg-3 { width: 25.00%; background: #a8c0f0; }
+    .seg-4 { width: 17.23%; background: #df7126; }
+
+    .timeline-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.42);
+      pointer-events: none;
+    }
+
+    .timeline-thumb {
+      position: absolute;
+      top: 50%;
+      left: 0%;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 10px rgba(203, 219, 252, 0.8), 0 1px 4px rgba(0, 0, 0, 0.6);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .act-markers {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .act-markers button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .act-markers button:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button.ctrl {
+      background: var(--bg-control);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+    }
+
+    button.ctrl:hover:not(:disabled) {
+      background: var(--bg-control-hover);
+      border-color: rgba(203, 219, 252, 0.3);
+    }
+
+    button.ctrl:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    button.ctrl.primary {
+      background: rgba(203, 219, 252, 0.15);
+      border-color: rgba(203, 219, 252, 0.35);
+    }
+
+    button.ctrl.active {
+      background: rgba(63, 116, 155, 0.38);
+      border-color: rgba(203, 219, 252, 0.48);
+    }
+
+    button.ctrl:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .slider-group input[type="range"] {
+      width: 92px;
+      accent-color: var(--accent-moon);
+      cursor: pointer;
+    }
+
+    .slider-val {
+      min-width: 34px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 560px) {
+      .controls-row {
+        justify-content: center;
+      }
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="studio">
+    <header class="header">
+      <div class="title-group">
+        <h1 class="title">Shoreline Moon Glitch</h1>
+        <span id="actPill" class="act-pill">Act I · Shore</span>
+      </div>
+      <div id="timeReadout" class="meta">0.00s / 9.00s · 60 fps</div>
+    </header>
+
+    <section class="stage-frame">
+      <canvas id="stage" width="1024" height="1024" aria-label="Shoreline Moon Glitch Animation"></canvas>
+      <div id="exportOverlay" class="export-overlay" role="status" aria-live="polite">
+        <div id="exportLabel" class="export-label">Rendering frames…</div>
+        <div class="export-bar-track">
+          <div id="exportBarFill" class="export-bar-fill"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="hud" aria-label="Animation Controls">
+      <div class="timeline-wrap">
+        <div id="timelineTrack" class="timeline-track" role="slider" aria-label="Timeline Scrubber" aria-valuemin="0" aria-valuemax="9" aria-valuenow="0">
+          <div class="act-segments">
+            <div class="seg-1"></div>
+            <div class="seg-2"></div>
+            <div class="seg-3"></div>
+            <div class="seg-4"></div>
+          </div>
+          <div id="timelineProgress" class="timeline-progress"></div>
+          <div id="timelineThumb" class="timeline-thumb"></div>
+        </div>
+        <div class="act-markers">
+          <button type="button" data-seek="0.0">I. Calm Shore (0.0s)</button>
+          <button type="button" data-seek="2.2">II. Moon Glitches (2.2s)</button>
+          <button type="button" data-seek="5.2">III. Awakening (5.2s)</button>
+          <button type="button" data-seek="8.15">IV. Inversion (8.15s)</button>
+        </div>
+      </div>
+
+      <div class="controls-row">
+        <div class="btn-group">
+          <button id="playPauseBtn" class="ctrl primary" type="button" title="Space">⏸ Pause</button>
+          <button id="restartBtn" class="ctrl" type="button" title="R">↺ Restart</button>
+          <button id="soundBtn" class="ctrl" type="button" title="M — Toggle sound preview (WebM export always includes audio)">🔇 Sound</button>
+        </div>
+
+        <div class="btn-group" role="group" aria-label="Playback Speed">
+          <button class="ctrl speed-btn" data-speed="0.5" type="button">0.5×</button>
+          <button class="ctrl speed-btn active" data-speed="1" type="button">1×</button>
+          <button class="ctrl speed-btn" data-speed="1.5" type="button">1.5×</button>
+        </div>
+
+        <label class="slider-group">
+          <span>Glitch</span>
+          <input id="glitchSlider" type="range" min="0" max="150" value="100" step="5" />
+          <span id="glitchVal" class="slider-val">100%</span>
+        </label>
+
+        <div class="btn-group">
+          <button id="exportWebmBtn" class="ctrl primary" type="button" title="Export full 9.0s 60fps WebM video with synthesized stereo audio">Export WebM</button>
+          <button id="exportGifBtn" class="ctrl" type="button" title="Export 9.0s 20fps animated GIF">Export GIF</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (() => {
+    'use strict';
+
+    /* =========================================================================
+     * 1. CONSTANTS, REFERENCE DB32 PALETTE & DETERMINISTIC MATH
+     * =======================================================================*/
+    const SIZE = 1024;
+    const DURATION = 9.0; // Seamless 9-second 4-act loop
+    const HORIZON_Y = 480;
+    const SHORE_Y = 896;
+    const POST_WIDTH = 144;
+    const POST_PITCH = 880; // Framed cleanly at x=0..144 and x=880..1024 when t=0
+    const TRAVELER_X = 576;
+
+    const PAL = {
+      skyTop: '#161426',
+      skyMid: '#222034',
+      skyHorizon: '#2d2b45',
+      cloudBody: '#cbdbfc',
+      cloudHighlight: '#dbe7ff',
+      cloudShadow: '#a7bce8',
+      cloudInvBody: '#512403',      // Exact RGB-inverted burnt umber from Frame 27
+      cloudInvHighlight: '#241800', // Exact RGB-inverted deep brown from Frame 27
+      cloudInvShadow: '#6b3309',
+      oceanBands: ['#315671', '#2f5c7d', '#306082', '#346689', '#336c95', '#3f749b'],
+      sandTop: '#ecb57e',
+      sandMid: '#d9a066',
+      sandLow: '#c68a51',
+      cloakBlack: '#000000',
+      cloakFold1: '#1d394d',
+      cloakFold2: '#1f3c51',
+      baseShadow: '#1b140d',
+      moonWhite: '#ffffff',
+      moonFace: '#d9dde6',
+      moonInvBlack: '#000000',
+      moonInvSmile: '#ececec',
+      emberOrange: '#df7126',       // Exact Frame 27 orange eye glint
+      postBase: '#622900',
+      postBevel: '#713002',
+      postEdge: '#411a00',
+      glitchCyan: '#42f5ff',
+      glitchMagenta: '#ff2b70'
+    };
+
+    function clamp(v, lo, hi) {
+      return v < lo ? lo : v > hi ? hi : v;
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function smoothstep(edge0, edge1, x) {
+      const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    function easeOutCubic(t) {
+      const u = 1 - clamp(t, 0, 1);
+      return 1 - u * u * u;
+    }
+
+    function easeInOutQuad(t) {
+      const u = clamp(t, 0, 1);
+      return u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    }
+
+    function mod(n, m) {
+      return ((n % m) + m) % m;
+    }
+
+    // Deterministic Mulberry32 PRNG keyed by quantized time bucket
+    function seededRand(seed) {
+      let a = (seed | 0) + 0x6d2b79f5;
+      a = Math.imul(a ^ (a >>> 15), a | 1);
+      a ^= a + Math.imul(a ^ (a >>> 7), a | 61);
+      return ((a ^ (a >>> 14)) >>> 0) / 4294967296;
+    }
+
+    function hexToRgb(hex) {
+      const n = parseInt(hex.slice(1), 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+
+    function mixHex(hexA, hexB, t) {
+      const a = hexToRgb(hexA);
+      const b = hexToRgb(hexB);
+      const u = clamp(t, 0, 1);
+      const r = Math.round(lerp(a[0], b[0], u));
+      const g = Math.round(lerp(a[1], b[1], u));
+      const bl = Math.round(lerp(a[2], b[2], u));
+      return `rgb(${r},${g},${bl})`;
+    }
+
+    /* =========================================================================
+     * 2. PRECOMPUTED PROCEDURAL SCENE ASSETS (STARS, SAND, WOOD GRAIN)
+     * =======================================================================*/
+    const STARS = Array.from({ length: 68 }, (_, i) => ({
+      x: seededRand(100 + i * 7) * SIZE,
+      y: 18 + seededRand(200 + i * 11) * (HORIZON_Y - 75),
+      r: 0.8 + seededRand(300 + i * 13) * 1.9,
+      phase: seededRand(400 + i * 17) * Math.PI * 2,
+      freq: 1 + Math.floor(seededRand(500 + i * 19) * 3) // Integer cycles per 9s loop
+    }));
+
+    const SAND_GRAINS = Array.from({ length: 140 }, (_, i) => ({
+      x: seededRand(700 + i * 5) * SIZE,
+      y: SHORE_Y + 8 + seededRand(800 + i * 9) * (SIZE - SHORE_Y - 14),
+      w: 2 + seededRand(900 + i * 3) * 7,
+      h: 1.5 + seededRand(950 + i * 7) * 2.5,
+      dark: seededRand(990 + i * 13) > 0.45,
+      alpha: 0.14 + seededRand(1050 + i * 11) * 0.24
+    }));
+
+    // Offscreen scratch buffers for localized RGB aberration, glitch slices & moon rendering
+    function makeBuffer(w = SIZE, h = SIZE) {
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      return { canvas: c, ctx: c.getContext('2d') };
+    }
+
+    const moonBuf = makeBuffer(SIZE, SIZE);
+    const sliceBuf = makeBuffer(SIZE, SIZE);
+    const fxBuf = makeBuffer(SIZE, SIZE);
+
+    // Pre-render subtle cedar wood texture onto an offscreen strip for fast crisp post drawing
+    const postTexture = makeBuffer(POST_WIDTH, SIZE);
+    (function buildPostTexture() {
+      const g = postTexture.ctx;
+      const grad = g.createLinearGradient(0, 0, POST_WIDTH, 0);
+      grad.addColorStop(0.0, PAL.postEdge);
+      grad.addColorStop(0.09, PAL.postBevel);
+      grad.addColorStop(0.22, PAL.postBase);
+      grad.addColorStop(0.78, PAL.postBase);
+      grad.addColorStop(0.91, PAL.postBevel);
+      grad.addColorStop(1.0, PAL.postEdge);
+      g.fillStyle = grad;
+      g.fillRect(0, 0, POST_WIDTH, SIZE);
+
+      // Subtle vertical cedar grain lines
+      for (let i = 0; i < 42; i++) {
+        const gx = 10 + seededRand(2000 + i * 13) * (POST_WIDTH - 20);
+        const gw = 1 + seededRand(2100 + i * 7) * 2.8;
+        g.fillStyle = i % 2 === 0 ? 'rgba(32, 11, 0, 0.24)' : 'rgba(138, 66, 14, 0.16)';
+        g.fillRect(gx, 0, gw, SIZE);
+      }
+
+      // Subtle knot whorls
+      for (let k = 0; k < 3; k++) {
+        const kx = 36 + seededRand(2400 + k * 29) * (POST_WIDTH - 72);
+        const ky = 170 + k * 310 + seededRand(2500 + k * 19) * 80;
+        g.save();
+        g.strokeStyle = 'rgba(42, 16, 0, 0.34)';
+        g.lineWidth = 2.5;
+        g.beginPath();
+        g.ellipse(kx, ky, 10, 26, 0.08, 0, Math.PI * 2);
+        g.stroke();
+        g.restore();
+      }
+    })();
+
+    /* =========================================================================
+     * 3. FOUR-ACT CHOREOGRAPHY STATE ENGINE (PURE FUNCTION OF t ∈ [0, 9.0))
+     * =======================================================================*/
+    function computeState(t, glitchScale) {
+      const loopT = mod(t, DURATION);
+      const u = loopT / DURATION; // [0, 1)
+
+      // Determine active act metadata
+      let actIndex = 1;
+      let actLabel = 'Act I · Calm Shore';
+      if (loopT >= 8.15) {
+        actIndex = 4;
+        actLabel = 'Act IV · Inversion';
+      } else if (loopT >= 5.2) {
+        actIndex = 3;
+        actLabel = 'Act III · Awakening';
+      } else if (loopT >= 2.2) {
+        actIndex = 2;
+        actLabel = 'Act II · Moon Glitches';
+      }
+
+      // --- Clouds & Eye Awakening State ---
+      // Two paired clouds spaced 512px apart, drifting rightward by exactly +512px over 9.0s -> seamless!
+      // At t=0: x = 290 and 802; at t=8.5: x = 262 and 774 (heroically framed inside the posts!)
+      const cloudDrift = u * 512;
+      const eyeOpen = smoothstep(5.85, 6.75, loopT);
+      const slitMorph = smoothstep(7.15, 7.85, loopT);
+      const invertClouds = loopT >= 8.15 && loopT < 8.93 ? 1 : 0;
+
+      // Cloud pupil glance choreography (Act III: glance right -> snap left -> lock dead-center)
+      let pupilLookX = 0;
+      let pupilLookY = 0.25;
+      if (loopT >= 5.85 && loopT < 6.45) {
+        pupilLookX = lerp(0.0, 0.55, smoothstep(5.95, 6.32, loopT));
+        pupilLookY = 0.28;
+      } else if (loopT >= 6.45 && loopT < 7.05) {
+        pupilLookX = lerp(0.55, -0.58, smoothstep(6.48, 6.82, loopT));
+        pupilLookY = 0.3;
+      } else if (loopT >= 7.05) {
+        pupilLookX = lerp(-0.58, 0.0, smoothstep(7.05, 7.45, loopT));
+        pupilLookY = lerp(0.3, 0.02, smoothstep(7.05, 7.6, loopT));
+      }
+
+      // --- Moon Position, Expression, Glitch & Inversion Choreography ---
+      // Base calm hover spot matches Frame 00 (just above horizon, slightly left of traveler's hat)
+      let moonX = 468 + Math.sin(u * Math.PI * 4) * 5;
+      let moonY = 456 + Math.sin(u * Math.PI * 2) * 8;
+      let moonR = 72;
+      let moonAlpha = 1;
+      let moonGlitch = 0;      // [0..1] slice & chromatic aberration intensity
+      let moonEcho = null;     // Optional ghost afterimage from abrupt teleport
+      let slashAmount = 0;     // [0..1] Act III diagonal tear/beam (Frames 24-25)
+      let eclipseAmount = 0;   // [0..1] Act IV darkening before inversion
+      let invertMoon = false;  // Frame 27 inverted black void moon + white grin + orange glint
+      let grinIntensity = 0;   // Subtle smile -> eerie wide grin
+
+      if (loopT < 2.2) {
+        // Act I: Serene smiling moon peering over the shore
+        moonGlitch = 0;
+        grinIntensity = 0.15;
+      } else if (loopT < 3.0) {
+        // Act IIa: Subtle escalating glitch tremors
+        const p = (loopT - 2.2) / 0.8;
+        const burst = seededRand(Math.floor(loopT * 24)) > (0.68 - p * 0.35) ? 1 : 0.18;
+        moonGlitch = (0.18 + 0.52 * p) * burst;
+        moonX += (seededRand(Math.floor(loopT * 30) + 7) - 0.5) * 18 * moonGlitch;
+        grinIntensity = 0.25 + 0.35 * p;
+      } else if (loopT < 5.2) {
+        // Act IIb: Discrete erratic screen-wide teleports (direct homage to Frames 06-17!)
+        const stops = [
+          { t0: 3.00, t1: 3.30, x: 848, y: 612, r: 72 }, // Right over ocean (F06)
+          { t0: 3.30, t1: 3.58, x: 118, y: 238, r: 70 }, // Upper-left sky (F07)
+          { t0: 3.58, t1: 3.84, x: 912, y: 58,  r: 72 }, // Top-right corner clipped (F08)
+          { t0: 3.84, t1: 4.24, x: 92,  y: 804, r: 70 }, // Bottom-left shoreline (F09-F10)
+          { t0: 4.24, t1: 4.64, x: 492, y: 454, r: 72 }, // Snaps behind center wooden post (F11-F13)
+          { t0: 4.64, t1: 5.20, x: 472, y: 82,  r: 74 }  // Peeking from top center behind post (F14-F17)
+        ];
+        let idx = stops.length - 1;
+        for (let i = 0; i < stops.length; i++) {
+          if (loopT >= stops[i].t0 && loopT < stops[i].t1) {
+            idx = i;
+            break;
+          }
+        }
+        const cur = stops[idx];
+        const prev = idx > 0 ? stops[idx - 1] : { x: 468, y: 456, r: 72 };
+        const age = loopT - cur.t0;
+        moonX = cur.x + Math.sin(loopT * 19) * 3;
+        moonY = cur.y + Math.cos(loopT * 15) * 2;
+        moonR = cur.r;
+        moonGlitch = age < 0.14 ? 1.0 : 0.42;
+        grinIntensity = 0.65;
+        if (age < 0.18) {
+          moonEcho = { x: prev.x, y: prev.y, r: prev.r, alpha: (1 - age / 0.18) * 0.55 };
+        }
+      } else if (loopT < 6.95) {
+        // Act IIIa: Purposeful descent straight down above the traveler's hat (Frames 18-23)
+        const p = easeInOutQuad((loopT - 5.2) / 1.55);
+        moonX = lerp(472, 492, p);
+        moonY = lerp(82, 508, p);
+        moonR = lerp(74, 82, p);
+        const tremor = smoothstep(6.2, 6.95, loopT);
+        moonGlitch = 0.12 + tremor * 0.55;
+        grinIntensity = lerp(0.55, 0.9, p);
+      } else if (loopT < 7.45) {
+        // Act IIIb: Destabilization & diagonal white glitch-slash cutting across traveler (Frames 24-25)
+        const p = (loopT - 6.95) / 0.50;
+        moonX = lerp(492, 474, p);
+        moonY = lerp(508, 576, p);
+        moonR = 82;
+        slashAmount = Math.sin(p * Math.PI); // Peaks right at t = 7.20s
+        moonAlpha = Math.max(0, 1 - smoothstep(0.28, 0.72, p));
+        moonGlitch = 0.85 + 0.15 * slashAmount;
+        grinIntensity = 1.0;
+      } else if (loopT < 8.15) {
+        // Act IVa: Stare-down tension — moon looms cleanly above-left of traveler's hat & eclipses (Frame 26)
+        const p = smoothstep(7.45, 8.15, loopT);
+        moonX = lerp(476, 472, p);
+        moonY = lerp(468, 434, p);
+        moonR = lerp(80, 92, p);
+        moonAlpha = smoothstep(7.45, 7.66, loopT);
+        eclipseAmount = smoothstep(7.50, 8.08, loopT);
+        moonGlitch = 0.28 + 0.34 * p;
+        grinIntensity = 0.88;
+      } else {
+        // Act IVb: Full Color-Inversion Reveal (8.15s - 8.92s) + 80ms Snap Reset (8.92s - 9.0s)
+        moonX = 472;
+        moonY = 434;
+        moonR = 92;
+        moonAlpha = 1;
+        eclipseAmount = 1;
+        invertMoon = loopT < 8.93;
+        const pulse = seededRand(Math.floor(loopT * 28)) > 0.65 ? 0.75 : 0.25;
+        moonGlitch = loopT >= 8.92 ? 1.5 : pulse;
+        grinIntensity = 1.0;
+      }
+
+      // Snap cut glitch intensity right at loop seam (8.92s -> 9.0s)
+      const snapGlitch = loopT >= 8.92 ? smoothstep(8.92, 8.97, loopT) : (loopT < 0.05 ? 1 - loopT / 0.05 : 0);
+
+      // Apply user's glitch multiplier smoothly
+      const effMoonGlitch = moonGlitch * glitchScale;
+      const effSnapGlitch = snapGlitch * Math.max(0.25, glitchScale);
+
+      // Overall eerie atmospheric tension (dims stars, shifts horizon mood)
+      const tension = smoothstep(5.4, 8.2, loopT) * (loopT >= 8.95 ? 0 : 1);
+
+      // --- Traveler Walk Cycle (16 full steps in 0..7.6s, easing to tense stillness at climax) ---
+      let walkSteps;
+      let walkVel;
+      if (loopT < 7.45) {
+        walkSteps = loopT * 2.0; // Steady 2 Hz steps
+        walkVel = 1.0;
+      } else if (loopT < 8.05) {
+        const stopP = (loopT - 7.45) / 0.60;
+        walkSteps = 7.45 * 2.0 + (stopP - 0.5 * stopP * stopP) * 1.2;
+        walkVel = 1 - stopP;
+      } else {
+        walkSteps = 7.45 * 2.0 + 0.6;
+        walkVel = 0;
+      }
+
+      // Subtle micro screen shake during diagonal slash & color-inversion climax
+      let shakeX = 0;
+      let shakeY = 0;
+      const shakePower = (slashAmount * 7 + (invertMoon ? 3.5 : 0) + effSnapGlitch * 10) * glitchScale;
+      if (shakePower > 0.1) {
+        const q = Math.floor(loopT * 45);
+        shakeX = (seededRand(q * 31 + 3) - 0.5) * 2 * shakePower;
+        shakeY = (seededRand(q * 37 + 9) - 0.5) * 2 * shakePower;
+      }
+
+      return {
+        t: loopT,
+        u,
+        actIndex,
+        actLabel,
+        tension,
+        cloudDrift,
+        eyeOpen,
+        slitMorph,
+        pupilLookX,
+        pupilLookY,
+        invertClouds: invertClouds > 0,
+        moonX,
+        moonY,
+        moonR,
+        moonAlpha,
+        moonGlitch: effMoonGlitch,
+        moonEcho,
+        slashAmount,
+        eclipseAmount,
+        invertMoon,
+        grinIntensity,
+        snapGlitch: effSnapGlitch,
+        walkSteps,
+        walkVel,
+        shakeX,
+        shakeY,
+        glitchScale
+      };
+    }
+
+    /* =========================================================================
+     * 4. PROCEDURAL SCENE LAYER RENDERERS
+     * =======================================================================*/
+
+    function drawSkyAndStars(ctx, st) {
+      // Night sky vertical gradient rooted in #222034
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, HORIZON_Y);
+      skyGrad.addColorStop(0.0, mixHex(PAL.skyTop, '#0d0c18', st.tension * 0.65));
+      skyGrad.addColorStop(0.58, mixHex(PAL.skyMid, '#181629', st.tension * 0.5));
+      skyGrad.addColorStop(1.0, mixHex(PAL.skyHorizon, '#1e1c33', st.tension * 0.45));
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, SIZE, HORIZON_Y + 2);
+
+      // Subtle twinkling stars that fade out as clouds awaken
+      const starVis = 1 - st.tension * 0.78;
+      if (starVis > 0.02) {
+        for (let i = 0; i < STARS.length; i++) {
+          const s = STARS[i];
+          const tw = 0.45 + 0.55 * Math.sin(st.u * Math.PI * 2 * s.freq + s.phase);
+          ctx.fillStyle = `rgba(219, 231, 255, ${(tw * 0.58 * starVis).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Soft lunar atmospheric glow cast onto the night sky
+      if (st.moonAlpha > 0.05 && !st.invertMoon) {
+        const haloAlpha = (1 - st.eclipseAmount * 0.85) * st.moonAlpha * 0.24;
+        const glow = ctx.createRadialGradient(
+          st.moonX, st.moonY, st.moonR * 0.6,
+          st.moonX, st.moonY, st.moonR * 4.4
+        );
+        glow.addColorStop(0, `rgba(219, 231, 255, ${haloAlpha.toFixed(3)})`);
+        glow.addColorStop(0.45, `rgba(203, 219, 252, ${(haloAlpha * 0.35).toFixed(3)})`);
+        glow.addColorStop(1, 'rgba(34, 32, 52, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, SIZE, HORIZON_Y);
+      }
+    }
+
+    /**
+     * Draw a single stylized cloud that smoothly morphs into a giant watchful eye
+     * (and inverts to burnt-umber #512403 / #241800 with dark voids in Act IV).
+     */
+    function drawSingleCloudEye(ctx, cx, cy, scale, st, variant) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+
+      const open = st.eyeOpen;
+      const inv = st.invertClouds;
+
+      // Interpolate silhouette between soft sculpted cloud and sharp watchful almond eye
+      const W = lerp(164, 174, open);
+      const Htop = lerp(72, 60, open);
+      const Hbot = lerp(44, 54, open);
+
+      // Build outer cloud-to-eye clip path
+      function traceShape() {
+        ctx.beginPath();
+        if (open < 0.02) {
+          // Pure sculpted stylized pixel-inspired cloud silhouette
+          ctx.moveTo(-W * 0.92, Hbot * 0.28);
+          ctx.bezierCurveTo(-W * 1.02, -Htop * 0.25, -W * 0.68, -Htop * 0.82, -W * 0.32, -Htop * 0.68);
+          ctx.bezierCurveTo(-W * 0.16, -Htop * 1.24, W * 0.24, -Htop * 1.22, W * 0.38, -Htop * 0.64);
+          ctx.bezierCurveTo(W * 0.72, -Htop * 0.72, W * 1.04, -Htop * 0.18, W * 0.92, Hbot * 0.34);
+          ctx.bezierCurveTo(W * 0.72, Hbot * 0.88, W * 0.28, Hbot * 1.02, 0, Hbot * 0.88);
+          ctx.bezierCurveTo(-W * 0.34, Hbot * 1.06, -W * 0.78, Hbot * 0.84, -W * 0.92, Hbot * 0.28);
+        } else {
+          // Smooth morph from puffy cloud curves into crisp watchful eye contour
+          const puff = 1 - open;
+          const peakLift = (variant === 0 ? -1 : 1) * 4 * puff;
+          ctx.moveTo(-W, lerp(12, 4, open));
+          ctx.bezierCurveTo(
+            -W * lerp(0.75, 0.56, open), -Htop * lerp(0.95, 1.05, open) + peakLift,
+            -W * lerp(0.22, 0.24, open), -Htop * lerp(1.18, 1.08, open),
+            0, -Htop * lerp(0.95, 1.02, open)
+          );
+          ctx.bezierCurveTo(
+            W * lerp(0.26, 0.28, open), -Htop * lerp(1.16, 1.08, open),
+            W * lerp(0.76, 0.58, open), -Htop * lerp(0.90, 1.04, open) - peakLift,
+            W, lerp(14, 4, open)
+          );
+          ctx.bezierCurveTo(
+            W * lerp(0.74, 0.54, open), Hbot * lerp(0.94, 1.06, open),
+            W * lerp(0.26, 0.24, open), Hbot * lerp(1.04, 1.02, open),
+            0, Hbot * lerp(0.92, 1.0, open)
+          );
+          ctx.bezierCurveTo(
+            -W * lerp(0.28, 0.26, open), Hbot * lerp(1.06, 1.02, open),
+            -W * lerp(0.76, 0.56, open), Hbot * lerp(0.92, 1.06, open),
+            -W, lerp(12, 4, open)
+          );
+        }
+        ctx.closePath();
+      }
+
+      // 1. Fill base cloud / sclera body
+      traceShape();
+      const bodyGrad = ctx.createLinearGradient(0, -Htop, 0, Hbot);
+      if (!inv) {
+        bodyGrad.addColorStop(0.0, PAL.cloudHighlight);
+        bodyGrad.addColorStop(0.55, PAL.cloudBody);
+        bodyGrad.addColorStop(1.0, mixHex(PAL.cloudShadow, '#b8cbf2', open));
+      } else {
+        // True Frame 27 color-inverted burnt-umber cloud eye
+        bodyGrad.addColorStop(0.0, PAL.cloudInvBody);
+        bodyGrad.addColorStop(0.62, '#431d02');
+        bodyGrad.addColorStop(1.0, PAL.cloudInvHighlight);
+      }
+      ctx.fillStyle = bodyGrad;
+      ctx.fill();
+
+      // 2. Clip inside silhouette for internal lighting, pupils, and inverted voids
+      ctx.save();
+      traceShape();
+      ctx.clip();
+
+      // Soft upper cloud highlight rim (only before full inversion)
+      if (!inv) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+        ctx.beginPath();
+        ctx.ellipse(0, -Htop * 0.58, W * 0.72, Htop * 0.42, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Dark inverted cloud blotches echoing Frame 27's eerie speckled brown clouds
+        ctx.fillStyle = '#060301';
+        const blotches = variant === 0
+          ? [[-12, -38, 42, 24], [116, -2, 34, 22], [-34, 26, 30, 16]]
+          : [[36, -42, 42, 26], [-94, 14, 34, 22], [68, 28, 28, 18]];
+        for (const [bx, by, rx, ry] of blotches) {
+          ctx.beginPath();
+          ctx.ellipse(bx, by, rx, ry, 0.12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 3. Emerging black iris & vertical slit pupil
+      if (open > 0.05) {
+        const px = st.pupilLookX * (W * 0.42);
+        // Pupil rises smoothly from bottom lid when first opening (just like Frame 23!)
+        const riseY = lerp(Hbot * 0.92, st.pupilLookY * Hbot * 0.45, smoothstep(0.05, 0.78, open));
+        const pupilRx = lerp(34, 26, st.slitMorph);
+        const pupilRy = lerp(32, 64, st.slitMorph);
+
+        // Subtle dark iris ring halo around the pupil
+        ctx.fillStyle = inv ? 'rgba(0, 0, 0, 0.72)' : 'rgba(22, 24, 42, 0.22)';
+        ctx.beginPath();
+        ctx.ellipse(px, riseY, pupilRx * 1.38, pupilRy * 1.12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Main obsidian pupil / vertical cat-like slit
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        if (st.slitMorph > 0.25) {
+          // Pointed vertical slit shape
+          const s = st.slitMorph;
+          const topY = riseY - pupilRy;
+          const botY = riseY + pupilRy;
+          const ctrlX = pupilRx * lerp(1.35, 1.12, s);
+          ctx.moveTo(px, topY);
+          ctx.bezierCurveTo(px + ctrlX, riseY - pupilRy * 0.42, px + ctrlX, riseY + pupilRy * 0.42, px, botY);
+          ctx.bezierCurveTo(px - ctrlX, riseY + pupilRy * 0.42, px - ctrlX, riseY - pupilRy * 0.42, px, topY);
+        } else {
+          ctx.ellipse(px, riseY, pupilRx, pupilRy, 0, 0, Math.PI * 2);
+        }
+        ctx.fill();
+
+        // Tiny pinpoint catchlight (vanishes on inversion)
+        if (!inv && open > 0.35) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${(0.55 * (1 - st.slitMorph * 0.5)).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(px - pupilRx * 0.38, riseY - pupilRy * 0.28, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Soft eyelid shadow at top rim
+      if (open > 0.1) {
+        const lidShadow = ctx.createLinearGradient(0, -Htop, 0, -Htop * 0.2);
+        lidShadow.addColorStop(0, `rgba(0, 0, 0, ${(0.52 * open).toFixed(3)})`);
+        lidShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = lidShadow;
+        ctx.fillRect(-W - 10, -Htop - 10, (W + 10) * 2, Htop * 1.1);
+      }
+
+      ctx.restore(); // end clip
+
+      // 4. Crisp ominous black upper eyelid outline as the clouds awaken (Frames 23-27)
+      if (open > 0.08) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = inv ? '#120800' : '#05050a';
+        ctx.lineWidth = lerp(2, 10, open);
+        ctx.beginPath();
+        ctx.moveTo(-W, lerp(12, 4, open));
+        ctx.bezierCurveTo(
+          -W * lerp(0.75, 0.56, open), -Htop * lerp(0.95, 1.05, open),
+          -W * lerp(0.22, 0.24, open), -Htop * lerp(1.18, 1.08, open),
+          0, -Htop * lerp(0.95, 1.02, open)
+        );
+        ctx.bezierCurveTo(
+          W * lerp(0.26, 0.28, open), -Htop * lerp(1.16, 1.08, open),
+          W * lerp(0.76, 0.58, open), -Htop * lerp(0.90, 1.04, open),
+          W, lerp(14, 4, open)
+        );
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawAwakeningClouds(ctx, st) {
+      // Paired cloud positions wrapping smoothly every 512px (100% seamless at t=0 and t=9)
+      const basePositions = [275, 787];
+      for (let idx = 0; idx < 2; idx++) {
+        const x = mod(basePositions[idx] + st.cloudDrift, SIZE);
+        const y = 152 + Math.sin((x / SIZE) * Math.PI * 2) * 5;
+        // Draw primary and wrap-around copies near left/right boundaries
+        drawSingleCloudEye(ctx, x, y, 1.0, st, idx);
+        if (x < 220) drawSingleCloudEye(ctx, x + SIZE, y, 1.0, st, idx);
+        if (x > SIZE - 220) drawSingleCloudEye(ctx, x - SIZE, y, 1.0, st, idx);
+      }
+    }
+
+    /**
+     * Draw the raw smiling moon disc (clean, eclipsed, or fully inverted) onto a context.
+     */
+    function drawMoonCore(g, cx, cy, r, st, tintColor = null) {
+      g.save();
+      g.translate(cx, cy);
+
+      if (tintColor) {
+        // Chromatic aberration ghost silhouette
+        g.fillStyle = tintColor;
+        g.beginPath();
+        g.arc(0, 0, r, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+        return;
+      }
+
+      if (!st.invertMoon) {
+        // Luminous white moon -> eclipses smoothly toward pitch black in Act IVa
+        const bodyColor = mixHex(PAL.moonWhite, '#07070b', st.eclipseAmount);
+
+        // Outer soft lunar halo
+        if (st.eclipseAmount < 0.92) {
+          const halo = g.createRadialGradient(0, 0, r * 0.72, 0, 0, r * 2.15);
+          const a = (1 - st.eclipseAmount) * 0.42;
+          halo.addColorStop(0, `rgba(255, 255, 255, ${a.toFixed(3)})`);
+          halo.addColorStop(0.45, `rgba(219, 231, 255, ${(a * 0.38).toFixed(3)})`);
+          halo.addColorStop(1, 'rgba(219, 231, 255, 0)');
+          g.fillStyle = halo;
+          g.beginPath();
+          g.arc(0, 0, r * 2.15, 0, Math.PI * 2);
+          g.fill();
+        } else {
+          // Thin uncanny eclipse rim corona right before inversion
+          g.strokeStyle = 'rgba(219, 231, 255, 0.35)';
+          g.lineWidth = 3;
+          g.beginPath();
+          g.arc(0, 0, r + 2, 0, Math.PI * 2);
+          g.stroke();
+        }
+
+        // Moon body
+        g.fillStyle = bodyColor;
+        g.beginPath();
+        g.arc(0, 0, r, 0, Math.PI * 2);
+        g.fill();
+
+        // Subtle surface sheen
+        if (st.eclipseAmount < 0.8) {
+          const sheen = g.createRadialGradient(-r * 0.25, -r * 0.25, r * 0.1, 0, 0, r);
+          sheen.addColorStop(0, `rgba(255, 255, 255, ${(0.35 * (1 - st.eclipseAmount)).toFixed(3)})`);
+          sheen.addColorStop(1, `rgba(186, 200, 224, ${(0.14 * (1 - st.eclipseAmount)).toFixed(3)})`);
+          g.fillStyle = sheen;
+          g.beginPath();
+          g.arc(0, 0, r, 0, Math.PI * 2);
+          g.fill();
+        }
+
+        // Iconic subtle smiley face (two soft eyes + wide smile, sharpening slightly as glitch escalates)
+        const faceAlpha = lerp(0.68, 0.92, st.grinIntensity) * (1 - st.eclipseAmount * 0.65);
+        const faceCol = mixHex('#d6dbe6', '#25283a', st.eclipseAmount * 0.8 + st.grinIntensity * 0.15);
+        g.fillStyle = faceCol;
+        g.strokeStyle = faceCol;
+        g.globalAlpha *= faceAlpha;
+
+        const eyeDx = r * 0.31;
+        const eyeY = -r * 0.08;
+        const eyeR = r * lerp(0.082, 0.092, st.grinIntensity);
+        g.beginPath();
+        g.arc(-eyeDx, eyeY, eyeR, 0, Math.PI * 2);
+        g.arc(eyeDx, eyeY, eyeR, 0, Math.PI * 2);
+        g.fill();
+
+        g.lineWidth = r * lerp(0.095, 0.11, st.grinIntensity);
+        g.lineCap = 'round';
+        g.beginPath();
+        const smileWidth = r * lerp(0.50, 0.58, st.grinIntensity);
+        const smileDrop = r * lerp(0.46, 0.54, st.grinIntensity);
+        g.moveTo(-smileWidth, r * 0.18);
+        g.quadraticCurveTo(0, smileDrop, smileWidth, r * 0.18);
+        g.stroke();
+      } else {
+        // === ACT IV INVERTED VOID MOON (Frame 27 Homage) ===
+        // Pitch-black inverted sphere with crisp dark-ember corona so its silhouette pops over the night sky
+        const darkAura = g.createRadialGradient(0, 0, r * 0.82, 0, 0, r * 1.95);
+        darkAura.addColorStop(0, 'rgba(223, 113, 38, 0.34)');
+        darkAura.addColorStop(0.28, 'rgba(36, 24, 0, 0.52)');
+        darkAura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        g.fillStyle = darkAura;
+        g.beginPath();
+        g.arc(0, 0, r * 1.95, 0, Math.PI * 2);
+        g.fill();
+
+        g.fillStyle = PAL.moonInvBlack;
+        g.beginPath();
+        g.arc(0, 0, r, 0, Math.PI * 2);
+        g.fill();
+
+        // Thin eerie inverted rim around the black eclipse sphere
+        g.strokeStyle = 'rgba(223, 113, 38, 0.42)';
+        g.lineWidth = 2.5;
+        g.beginPath();
+        g.arc(0, 0, r + 1, 0, Math.PI * 2);
+        g.stroke();
+
+        // Peering inverted eyes with piercing #DF7126 ember-orange glow (mirroring the smiling moon!)
+        const eyePositions = [
+          [-r * 0.31, -r * 0.10, 1.0],
+          [ r * 0.31, -r * 0.10, 0.72]
+        ];
+        for (const [eyeX, eyeY, power] of eyePositions) {
+          const emberGlow = g.createRadialGradient(eyeX, eyeY, 1, eyeX, eyeY, r * 0.36 * power);
+          emberGlow.addColorStop(0, `rgba(223, 113, 38, ${(0.95 * power).toFixed(3)})`);
+          emberGlow.addColorStop(0.45, `rgba(223, 113, 38, ${(0.32 * power).toFixed(3)})`);
+          emberGlow.addColorStop(1, 'rgba(223, 113, 38, 0)');
+          g.fillStyle = emberGlow;
+          g.beginPath();
+          g.arc(eyeX, eyeY, r * 0.36 * power, 0, Math.PI * 2);
+          g.fill();
+
+          g.fillStyle = PAL.emberOrange;
+          g.beginPath();
+          g.ellipse(eyeX, eyeY, r * 0.105 * power, r * 0.088 * power, 0, 0, Math.PI * 2);
+          g.fill();
+
+          g.fillStyle = '#ffb578';
+          g.beginPath();
+          g.arc(eyeX, eyeY - 1, r * 0.036 * power, 0, Math.PI * 2);
+          g.fill();
+        }
+
+        // Stark glowing #ECECEC inverted wide grinning smile & teeth row
+        g.save();
+        g.fillStyle = PAL.moonInvSmile;
+        g.shadowColor = 'rgba(236, 236, 236, 0.72)';
+        g.shadowBlur = 12;
+        g.beginPath();
+        g.moveTo(-r * 0.58, r * 0.18);
+        g.quadraticCurveTo(0, r * 0.42, r * 0.58, r * 0.18);
+        g.quadraticCurveTo(r * 0.48, r * 0.48, 0, r * 0.56);
+        g.quadraticCurveTo(-r * 0.48, r * 0.48, -r * 0.58, r * 0.18);
+        g.closePath();
+        g.fill();
+
+        // Crisp dark teeth dividers for uncanny grin texture
+        g.shadowBlur = 0;
+        g.strokeStyle = '#000000';
+        g.lineWidth = 3.0;
+        for (let k = -3; k <= 3; k++) {
+          const tx = k * (r * 0.145);
+          g.beginPath();
+          g.moveTo(tx, r * 0.20);
+          g.lineTo(tx, r * 0.58);
+          g.stroke();
+        }
+        g.restore();
+      }
+
+      g.restore();
+    }
+
+    /**
+     * Render the smiling moon with localized RGB chromatic aberration and horizontal glitch slices.
+     */
+    function drawSmilingMoon(ctx, st) {
+      // Optional teleport echo ghost from previous position
+      if (st.moonEcho && st.glitchScale > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = st.moonEcho.alpha * Math.min(1, st.glitchScale);
+        ctx.globalCompositeOperation = 'screen';
+        drawMoonCore(ctx, st.moonEcho.x - 10, st.moonEcho.y, st.moonEcho.r * 0.96, st, PAL.glitchCyan);
+        drawMoonCore(ctx, st.moonEcho.x + 10, st.moonEcho.y, st.moonEcho.r * 0.96, st, PAL.glitchMagenta);
+        ctx.restore();
+      }
+
+      if (st.moonAlpha <= 0.01) return;
+
+      const g = moonBuf.ctx;
+      g.clearRect(0, 0, SIZE, SIZE);
+
+      const glitch = st.moonGlitch;
+      const bucket = Math.floor(st.t * 28);
+
+      // 1. Chromatic aberration channel split ghosts (Cyan + Magenta offset)
+      if (glitch > 0.08 && !st.invertMoon) {
+        const split = (6 + glitch * 22) * (0.6 + 0.4 * seededRand(bucket * 13 + 5));
+        g.save();
+        g.globalCompositeOperation = 'screen';
+        g.globalAlpha = clamp(glitch * 0.55, 0, 0.62) * st.moonAlpha;
+        drawMoonCore(g, st.moonX - split, st.moonY + (seededRand(bucket * 7) - 0.5) * 6, st.moonR, st, PAL.glitchCyan);
+        drawMoonCore(g, st.moonX + split, st.moonY - (seededRand(bucket * 11) - 0.5) * 6, st.moonR, st, PAL.glitchMagenta);
+        g.restore();
+      }
+
+      // 2. Render core moon
+      g.save();
+      g.globalAlpha = st.moonAlpha;
+      drawMoonCore(g, st.moonX, st.moonY, st.moonR, st);
+      g.restore();
+
+      // 3. Apply horizontal glitch slice displacement directly around the moon bounds
+      if (glitch > 0.12) {
+        const sctx = sliceBuf.ctx;
+        sctx.clearRect(0, 0, SIZE, SIZE);
+        sctx.drawImage(moonBuf.canvas, 0, 0);
+
+        const minY = Math.max(0, Math.floor(st.moonY - st.moonR * 1.4));
+        const maxY = Math.min(SIZE, Math.ceil(st.moonY + st.moonR * 1.4));
+        const sliceCount = 5 + Math.floor(glitch * 8);
+
+        for (let i = 0; i < sliceCount; i++) {
+          const sy = minY + Math.floor(seededRand(bucket * 41 + i * 17) * (maxY - minY));
+          const sh = 4 + Math.floor(seededRand(bucket * 43 + i * 19) * 18);
+          const dx = (seededRand(bucket * 47 + i * 23) - 0.5) * 2 * (18 + glitch * 54);
+          sctx.clearRect(0, sy, SIZE, sh);
+          sctx.drawImage(moonBuf.canvas, 0, sy, SIZE, sh, dx, sy, SIZE, sh);
+        }
+
+        // Subtle inverted-color glitch strips around the void moon in Act IV
+        if (st.invertMoon && glitch > 0.2) {
+          sctx.fillStyle = 'rgba(236, 236, 236, 0.72)';
+          for (let j = 0; j < 3; j++) {
+            const sy = st.moonY - st.moonR + seededRand(bucket * 61 + j * 13) * st.moonR * 2;
+            const sw = 28 + seededRand(bucket * 67 + j * 7) * 76;
+            const sx = st.moonX - sw * 0.5 + (seededRand(bucket * 71 + j * 11) - 0.5) * 90;
+            sctx.fillRect(sx, sy, sw, 3);
+          }
+        }
+
+        ctx.drawImage(sliceBuf.canvas, 0, 0);
+      } else {
+        ctx.drawImage(moonBuf.canvas, 0, 0);
+      }
+    }
+
+    /**
+     * Act IIIb Diagonal Glitch-Slash Beam (Frames 24-25 homage):
+     * Sharp glowing diagonal white streak slicing from upper-left through the traveler's head to the right.
+     */
+    function drawDiagonalSlash(ctx, st) {
+      if (st.slashAmount <= 0.01) return;
+      const a = st.slashAmount;
+      ctx.save();
+
+      const x1 = lerp(390, 145, easeOutCubic(a));
+      const y1 = lerp(586, 552, easeOutCubic(a));
+      const x2 = lerp(580, 868, easeOutCubic(a));
+      const y2 = lerp(618, 666, easeOutCubic(a));
+
+      // Chromatic aberration cyan & magenta outer blades
+      if (st.glitchScale > 0.05) {
+        ctx.globalCompositeOperation = 'screen';
+        const off = 11 * a * st.glitchScale;
+        drawSlashPolygon(ctx, x1, y1 - off, x2, y2 - off * 0.7, 19 * a, `rgba(66, 245, 255, ${(0.68 * a).toFixed(3)})`);
+        drawSlashPolygon(ctx, x1, y1 + off, x2, y2 + off * 0.7, 19 * a, `rgba(255, 43, 112, ${(0.68 * a).toFixed(3)})`);
+      }
+
+      // Main blinding white core slash with glow
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
+      ctx.shadowBlur = 24 * a;
+      drawSlashPolygon(ctx, x1, y1, x2, y2, 22 * a, `rgba(255, 255, 255, ${(0.96 * a).toFixed(3)})`);
+
+      // Scattered horizontal glitch micro-fragments along the tear
+      ctx.shadowBlur = 0;
+      const q = Math.floor(st.t * 40);
+      for (let i = 0; i < 12; i++) {
+        const f = seededRand(q * 29 + i * 11);
+        const fx = lerp(x1, x2, f) + (seededRand(q * 31 + i * 7) - 0.5) * 48;
+        const fy = lerp(y1, y2, f) + (seededRand(q * 37 + i * 13) - 0.5) * 44;
+        const fw = 12 + seededRand(q * 41 + i * 5) * 44;
+        ctx.fillStyle = i % 3 === 0 ? 'rgba(66, 245, 255, 0.8)' : 'rgba(255, 255, 255, 0.9)';
+        ctx.fillRect(fx, fy, fw, 3.5);
+      }
+
+      ctx.restore();
+    }
+
+    function drawSlashPolygon(ctx, x1, y1, x2, y2, halfThickness, fill) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      const mx = (x1 + x2) * 0.48;
+      const my = (y1 + y2) * 0.48;
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.quadraticCurveTo(mx + nx * halfThickness, my + ny * halfThickness, x2, y2);
+      ctx.quadraticCurveTo(mx - nx * halfThickness * 0.72, my - ny * halfThickness * 0.72, x1, y1);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawOceanAndReflection(ctx, st) {
+      const oceanH = SHORE_Y - HORIZON_Y;
+
+      // 1. Layered ocean depth bands faithfully inspired by the GIF's striped sea
+      const bandCount = PAL.oceanBands.length;
+      const bandH = oceanH / bandCount;
+      for (let i = 0; i < bandCount; i++) {
+        const y0 = HORIZON_Y + i * bandH;
+        ctx.fillStyle = mixHex(PAL.oceanBands[i], '#1c3549', st.tension * 0.25);
+        ctx.fillRect(0, y0, SIZE, bandH + 2);
+      }
+
+      // Soft depth gradient tying bands together smoothly while preserving stylized horizontal layering
+      const seaGrad = ctx.createLinearGradient(0, HORIZON_Y, 0, SHORE_Y);
+      seaGrad.addColorStop(0.0, 'rgba(18, 30, 48, 0.34)');
+      seaGrad.addColorStop(0.45, 'rgba(48, 96, 130, 0.08)');
+      seaGrad.addColorStop(0.88, 'rgba(63, 116, 155, 0.14)');
+      seaGrad.addColorStop(1.0, 'rgba(236, 181, 126, 0.16)');
+      ctx.fillStyle = seaGrad;
+      ctx.fillRect(0, HORIZON_Y, SIZE, oceanH);
+
+      // 2. Seamless drifting sinusoidal water crests (integer wave cycles across 9.0s)
+      const wavePhase = st.u * Math.PI * 2;
+      for (let row = 0; row < 14; row++) {
+        const depth = row / 13; // 0 near horizon -> 1 near shore
+        const wy = HORIZON_Y + 14 + Math.pow(depth, 1.18) * (oceanH - 28);
+        const speedMult = 1 + Math.floor(depth * 3); // Integer cycles per loop for zero seam
+        const amp = lerp(1.2, 4.2, depth);
+        const alpha = lerp(0.08, 0.19, depth);
+
+        ctx.strokeStyle = `rgba(203, 219, 252, ${alpha.toFixed(3)})`;
+        ctx.lineWidth = lerp(1.2, 2.8, depth);
+        ctx.beginPath();
+        for (let x = 0; x <= SIZE; x += 24) {
+          const yOff = Math.sin((x / SIZE) * Math.PI * 2 * (3 + (row % 3)) - wavePhase * speedMult + row * 1.4) * amp;
+          if (x === 0) ctx.moveTo(x, wy + yOff);
+          else ctx.lineTo(x, wy + yOff);
+        }
+        ctx.stroke();
+      }
+
+      // 3. Dynamic Moonlight Reflection Column on the Water (tracks & glitches with the moon!)
+      if (st.moonAlpha > 0.04) {
+        ctx.save();
+        const refX = st.moonX;
+        const rows = 26;
+        const q = Math.floor(st.t * 24);
+
+        for (let r = 0; r < rows; r++) {
+          const depth = r / (rows - 1);
+          const ry = HORIZON_Y + 8 + Math.pow(depth, 1.12) * (oceanH - 24);
+          const wobble = Math.sin(wavePhase * 3 + r * 0.9) * (10 + depth * 22);
+          const glitchJitter = st.moonGlitch > 0.15
+            ? (seededRand(q * 19 + r * 13) - 0.5) * 76 * st.moonGlitch
+            : 0;
+          const rw = (34 + depth * 118) * (0.72 + 0.28 * Math.cos(wavePhase * 2 + r * 1.3));
+          const rh = lerp(2.2, 5.5, depth);
+          const rx = refX - rw * 0.5 + wobble + glitchJitter;
+
+          if (!st.invertMoon) {
+            const bright = (1 - st.eclipseAmount * 0.85) * st.moonAlpha * lerp(0.55, 0.18, depth);
+            ctx.fillStyle = `rgba(219, 231, 255, ${bright.toFixed(3)})`;
+            ctx.fillRect(rx, ry, rw, rh);
+
+            // Chromatic shimmer ribbons during moon glitch bursts
+            if (st.moonGlitch > 0.3 && r % 3 === 0) {
+              ctx.fillStyle = `rgba(66, 245, 255, ${(bright * 0.55).toFixed(3)})`;
+              ctx.fillRect(rx - 14 * st.moonGlitch, ry, rw * 0.6, rh * 0.8);
+              ctx.fillStyle = `rgba(255, 43, 112, ${(bright * 0.45).toFixed(3)})`;
+              ctx.fillRect(rx + 14 * st.moonGlitch, ry, rw * 0.6, rh * 0.8);
+            }
+          } else {
+            // Act IV: Eerie void dark reflection column with rare #DF7126 ember glints!
+            ctx.fillStyle = `rgba(0, 0, 0, ${lerp(0.42, 0.16, depth).toFixed(3)})`;
+            ctx.fillRect(rx, ry, rw, rh * 1.25);
+            if (r % 5 === 1) {
+              ctx.fillStyle = `rgba(223, 113, 38, ${lerp(0.45, 0.18, depth).toFixed(3)})`;
+              ctx.fillRect(rx + rw * 0.25, ry, rw * 0.35, rh * 0.7);
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      // 4. Gentle curved shoreline surf foam lapping onto the sand
+      const foamWash = Math.sin(wavePhase * 3) * 5;
+      ctx.save();
+      ctx.fillStyle = 'rgba(219, 231, 255, 0.24)';
+      ctx.beginPath();
+      ctx.moveTo(0, SHORE_Y - 3);
+      for (let x = 0; x <= SIZE; x += 32) {
+        const fy = SHORE_Y + foamWash + Math.sin((x / SIZE) * Math.PI * 2 * 4 - wavePhase * 2) * 3.5;
+        ctx.lineTo(x, fy);
+      }
+      ctx.lineTo(SIZE, SHORE_Y + 12);
+      ctx.lineTo(0, SHORE_Y + 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawShore(ctx, st) {
+      // Warm sandy beach gradient rooted in #ECB57E & #D9A066
+      const sandGrad = ctx.createLinearGradient(0, SHORE_Y, 0, SIZE);
+      sandGrad.addColorStop(0.0, PAL.sandTop);
+      sandGrad.addColorStop(0.16, PAL.sandMid);
+      sandGrad.addColorStop(1.0, PAL.sandLow);
+      ctx.fillStyle = sandGrad;
+      ctx.fillRect(0, SHORE_Y, SIZE, SIZE - SHORE_Y);
+
+      // Wet sand specular strip right along the water's edge
+      const wetGrad = ctx.createLinearGradient(0, SHORE_Y, 0, SHORE_Y + 26);
+      wetGrad.addColorStop(0.0, 'rgba(63, 116, 155, 0.34)');
+      wetGrad.addColorStop(0.55, 'rgba(236, 181, 126, 0.25)');
+      wetGrad.addColorStop(1.0, 'rgba(217, 160, 102, 0)');
+      ctx.fillStyle = wetGrad;
+      ctx.fillRect(0, SHORE_Y, SIZE, 26);
+
+      // Scrolling micro sand grains & pebbles (parallax speed = +1024px over 9.0s -> seamless!)
+      const sandScroll = st.u * SIZE;
+      for (let i = 0; i < SAND_GRAINS.length; i++) {
+        const p = SAND_GRAINS[i];
+        const gx = mod(p.x + sandScroll, SIZE);
+        ctx.fillStyle = p.dark
+          ? `rgba(116, 70, 32, ${p.alpha.toFixed(3)})`
+          : `rgba(255, 224, 186, ${(p.alpha * 0.85).toFixed(3)})`;
+        ctx.fillRect(gx, p.y, p.w, p.h);
+      }
+
+      // Subtle trailing footprint impressions behind the traveler (extending to the right since walking left)
+      const stepScroll = (st.walkSteps * 64) % 96;
+      ctx.fillStyle = 'rgba(130, 82, 42, 0.22)';
+      for (let k = 0; k < 5; k++) {
+        const fx = TRAVELER_X + 34 + k * 96 + stepScroll;
+        if (fx > SIZE + 40) continue;
+        const fy = SHORE_Y + 18 + (k % 2 === 0 ? -3 : 5);
+        const fade = clamp(1 - (fx - TRAVELER_X) / 480, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.beginPath();
+        ctx.ellipse(fx, fy, 15, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    /**
+     * Draw the iconic cloaked traveler walking left along the shoreline:
+     * conical wide-brimmed hat, flowing dark folds, glowing white eyes, dynamic lunar rim light.
+     */
+    function drawTraveler(ctx, st) {
+      const stepPhase = st.walkSteps * Math.PI;
+      const bob = Math.abs(Math.sin(stepPhase)) * 8.5 * st.walkVel;
+      const sway = Math.sin(stepPhase) * 7.5 * st.walkVel;
+      const lean = -0.024 * st.walkVel;
+
+      // Grounding shadow & dark shoreline base matching the GIF's dark brown platform/shadow
+      const baseY = SHORE_Y + 11;
+      ctx.save();
+      const shadowScale = 1 - bob * 0.012;
+      ctx.fillStyle = 'rgba(20, 14, 9, 0.72)';
+      ctx.beginPath();
+      ctx.ellipse(TRAVELER_X + 4, baseY + 6, 134 * shadowScale, 20 * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = PAL.baseShadow;
+      ctx.beginPath();
+      ctx.ellipse(TRAVELER_X + 4, baseY, 122 * shadowScale, 15 * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Main figure transform anchored near feet
+      ctx.save();
+      ctx.translate(TRAVELER_X, baseY - 2 - bob);
+      ctx.rotate(lean);
+
+      // Dynamic lunar rim-light factor (intensifies when moon descends right behind the traveler!)
+      const moonDist = Math.hypot(st.moonX - TRAVELER_X, st.moonY - (SHORE_Y - 260));
+      const rimStrength = st.invertMoon
+        ? 0.08
+        : clamp(1 - moonDist / 520, 0.12, 1.0) * (1 - st.eclipseAmount * 0.78) * st.moonAlpha;
+
+      // 1. Flowing bell-shaped black cloak silhouette
+      const hemWaveL = Math.sin(stepPhase + 0.6) * 8 * st.walkVel;
+      const hemWaveR = Math.sin(stepPhase - 0.9) * 11 * st.walkVel;
+      ctx.fillStyle = PAL.cloakBlack;
+      ctx.beginPath();
+      ctx.moveTo(-26, -214); // left neck/shoulder
+      ctx.bezierCurveTo(-52, -162, -74, -82, -138 + hemWaveL, -4);
+      // Undulating bottom cloak hem
+      ctx.bezierCurveTo(-78, 12, -10, 10, 48, 8);
+      ctx.bezierCurveTo(96, 6, 138, 4, 156 + hemWaveR, -6);
+      // Trailing right back edge of cloak (swept subtly right by walking left)
+      ctx.bezierCurveTo(106 + sway * 0.9, -78, 72 + sway * 0.5, -166, 22, -214);
+      ctx.closePath();
+      ctx.fill();
+
+      // 2. Signature dark steel-blue interior vertical cloak folds (#1D394D / #1F3C51 from GIF!)
+      ctx.save();
+      ctx.strokeStyle = PAL.cloakFold1;
+      ctx.lineCap = 'round';
+      // Center vertical seam fold
+      ctx.lineWidth = 13;
+      ctx.beginPath();
+      ctx.moveTo(-6, -210);
+      ctx.quadraticCurveTo(-8 + sway * 0.35, -130, -14 + sway * 0.5, -92);
+      ctx.stroke();
+
+      // Left diagonal sweeping fold
+      ctx.strokeStyle = PAL.cloakFold2;
+      ctx.lineWidth = 11;
+      ctx.beginPath();
+      ctx.moveTo(-10, -118);
+      ctx.quadraticCurveTo(-30 + sway * 0.4, -64, -56 + hemWaveL * 0.5, -10);
+      ctx.stroke();
+
+      // Right diagonal sweeping fold
+      ctx.beginPath();
+      ctx.moveTo(4, -116);
+      ctx.quadraticCurveTo(38 + sway * 0.6, -62, 74 + hemWaveR * 0.45, -10);
+      ctx.stroke();
+
+      // Subtle moonlight rim highlight along left shoulder & back slope
+      if (rimStrength > 0.08) {
+        ctx.strokeStyle = `rgba(203, 219, 252, ${(rimStrength * 0.48).toFixed(3)})`;
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(-24, -212);
+        ctx.bezierCurveTo(-50, -162, -72, -84, -134 + hemWaveL, -8);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 3. Head / neck beneath the hat shadow
+      const faceBridgeBright = smoothstep(6.2, 6.9, st.t) * (1 - smoothstep(7.05, 7.35, st.t));
+      ctx.fillStyle = mixHex(PAL.cloakFold2, '#99a8bd', faceBridgeBright * 0.85);
+      ctx.beginPath();
+      ctx.ellipse(-4, -242, 26, 28, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Deep hat shadow mask over upper/side head
+      ctx.fillStyle = '#05080d';
+      ctx.beginPath();
+      ctx.ellipse(-4, -250, 32, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Two glowing white pixel-inspired eyes peering beneath the brim
+      // Slightly wider/brighter when startled in Act III-IV
+      const eyeGlow = 10 + st.tension * 8;
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(219, 231, 255, 0.9)';
+      ctx.shadowBlur = eyeGlow;
+      const eyeShiftX = st.tension > 0.2 ? -4 : 0; // Glances slightly left as dread builds
+      ctx.beginPath();
+      ctx.ellipse(-22 + eyeShiftX, -242, 7.5, 6.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(16 + eyeShiftX, -242, 7.5, 6.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 5. Iconic wide-brimmed asymmetric conical black hat (tilts gently with stride)
+      ctx.save();
+      ctx.translate(-4, -264);
+      ctx.rotate(Math.sin(stepPhase) * 0.018 * st.walkVel);
+
+      ctx.fillStyle = PAL.cloakBlack;
+      ctx.beginPath();
+      ctx.moveTo(-148, 16);                              // Far-left brim tip
+      ctx.quadraticCurveTo(-74, -28, -14, -90);          // Left crown slope
+      ctx.quadraticCurveTo(-4, -99, 6, -86);             // Sharp conical apex
+      ctx.quadraticCurveTo(44, -46, 86, -34);            // Asymmetric right ridge (from GIF!)
+      ctx.quadraticCurveTo(132, -16, 152, 16);           // Far-right brim tip
+      ctx.quadraticCurveTo(0, 24, -148, 16);             // Slightly curved underside brim
+      ctx.closePath();
+      ctx.fill();
+
+      // Crisp lunar rim highlight along the hat's crown facing the moon
+      if (rimStrength > 0.08) {
+        ctx.strokeStyle = `rgba(219, 231, 255, ${(rimStrength * 0.65).toFixed(3)})`;
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-144, 13);
+        ctx.quadraticCurveTo(-72, -29, -13, -89);
+        ctx.quadraticCurveTo(-4, -97, 6, -85);
+        ctx.stroke();
+      }
+
+      ctx.restore(); // end hat
+      ctx.restore(); // end traveler
+    }
+
+    function drawWoodenPosts(ctx, st) {
+      // Posts sweep steadily left-to-right by exactly POST_PITCH (880px) over 9.0s -> 100% seamless!
+      // At t=0: posts occupy [0..144] and [880..1024], framing the exact opening of animation_cool.gif.
+      const offset = st.u * POST_PITCH;
+      for (let k = -1; k <= 2; k++) {
+        const px = k * POST_PITCH + offset;
+        if (px + POST_WIDTH < -30 || px > SIZE + 30) continue;
+
+        ctx.save();
+        // Soft foreground parallax depth drop-shadow on both edges
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+        ctx.shadowBlur = 26;
+        ctx.shadowOffsetX = 0;
+        ctx.drawImage(postTexture.canvas, px, 0);
+        ctx.restore();
+      }
+    }
+
+    /* =========================================================================
+     * 5. POST-PROCESSING (SNAP GLITCH, SCANLINE TEARS & ATMOSPHERIC VIGNETTE)
+     * =======================================================================*/
+    function applyPostFX(ctx, st) {
+      // 1. Global micro glitch tear during peak diagonal slash, inversion pulse, or loop-seam snap
+      const globalTear = Math.max(
+        st.snapGlitch,
+        st.slashAmount * 0.55 * st.glitchScale,
+        (st.invertMoon && seededRand(Math.floor(st.t * 24) + 91) > 0.72) ? 0.35 * st.glitchScale : 0
+      );
+
+      if (globalTear > 0.08) {
+        fxBuf.ctx.clearRect(0, 0, SIZE, SIZE);
+        fxBuf.ctx.drawImage(ctx.canvas, 0, 0);
+
+        const q = Math.floor(st.t * 50);
+        const bands = 4 + Math.floor(globalTear * 10);
+        for (let i = 0; i < bands; i++) {
+          const by = Math.floor(seededRand(q * 53 + i * 17) * SIZE);
+          const bh = 6 + Math.floor(seededRand(q * 59 + i * 19) * 34);
+          const shift = (seededRand(q * 61 + i * 23) - 0.5) * 2 * (28 + globalTear * 96);
+          ctx.drawImage(fxBuf.canvas, 0, by, SIZE, bh, shift, by, SIZE, bh);
+        }
+
+        // Brief horizontal scanline flash on loop snap cut
+        if (st.snapGlitch > 0.15) {
+          ctx.fillStyle = `rgba(219, 231, 255, ${(st.snapGlitch * 0.16).toFixed(3)})`;
+          for (let y = 0; y < SIZE; y += 8) {
+            ctx.fillRect(0, y, SIZE, 2);
+          }
+        }
+      }
+
+      // 2. Subtle atmospheric cinema scanline texture (very light, keeps stylized clarity crisp)
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.045)';
+      for (let y = 0; y < SIZE; y += 4) {
+        ctx.fillRect(0, y, SIZE, 1);
+      }
+
+      // 3. Soft atmospheric vignette intensifying slightly during Acts III–IV
+      const vig = ctx.createRadialGradient(
+        SIZE * 0.5, SIZE * 0.5, SIZE * 0.34,
+        SIZE * 0.5, SIZE * 0.5, SIZE * 0.74
+      );
+      vig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      vig.addColorStop(1, `rgba(7, 6, 14, ${(0.28 + st.tension * 0.22).toFixed(3)})`);
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, SIZE, SIZE);
+      ctx.restore();
+    }
+
+    /* =========================================================================
+     * 6. MASTER DETERMINISTIC FRAME RENDERER
+     * =======================================================================*/
+    const stageCanvas = document.getElementById('stage');
+    const stageCtx = stageCanvas.getContext('2d', { willReadFrequently: false });
+
+    function renderFrame(ctx, t, glitchScale) {
+      const st = computeState(t, glitchScale);
+
+      ctx.save();
+      ctx.clearRect(0, 0, SIZE, SIZE);
+
+      // Apply subtle camera shake (overscan fill prevents empty borders)
+      if (st.shakeX !== 0 || st.shakeY !== 0) {
+        ctx.fillStyle = PAL.skyMid;
+        ctx.fillRect(0, 0, SIZE, SIZE);
+        ctx.translate(st.shakeX, st.shakeY);
+      }
+
+      // Layer 1: Night sky & twinkling stars
+      drawSkyAndStars(ctx, st);
+
+      // Layer 2: Clouds morphing into awakening eyes (& burnt-umber inversion)
+      drawAwakeningClouds(ctx, st);
+
+      // Layer 3: Ocean bands, sinusoidal ripples, & dynamic moonlight reflection
+      drawOceanAndReflection(ctx, st);
+
+      // Layer 4: Smiling moon (rendered above horizon/ocean so it glides seamlessly in front of sea & behind traveler!)
+      drawSmilingMoon(ctx, st);
+
+      // Layer 5: Sandy shore, wet shoreline sheen & footprints
+      drawShore(ctx, st);
+
+      // Layer 6: Walking cloaked traveler
+      drawTraveler(ctx, st);
+
+      // Layer 7: Act IIIb diagonal white glitch-slash cutting across the traveler
+      drawDiagonalSlash(ctx, st);
+
+      // Layer 8: Foreground sweeping wooden posts (framing parallax)
+      drawWoodenPosts(ctx, st);
+
+      ctx.restore();
+
+      // Layer 9: Post-processing (snap tears, subtle scanlines, vignette)
+      applyPostFX(ctx, st);
+
+      return st;
+    }
+
+    /* =========================================================================
+     * 7. SELF-CONTAINED OFFLINE GIF89a ENCODER (ZERO EXTERNAL DEPENDENCIES)
+     * =======================================================================*/
+    // Build a dedicated 256-color palette tailored to this scene's exact palette,
+    // gradients, RGB glitch bursts, and burnt-umber inverted climax.
+    function buildScenePalette() {
+      const colors = [];
+      const addHex = (hex) => colors.push(hexToRgb(hex));
+
+      // Exact core DB32 & climax colors first
+      [
+        '#000000', '#ffffff', '#ececec', '#222034', '#161426', '#2d2b45',
+        '#cbdbfc', '#dbe7ff', '#a7bce8', '#512403', '#241800', '#6b3309',
+        '#315671', '#2f5c7d', '#306082', '#346689', '#336c95', '#3f749b',
+        '#ecb57e', '#d9a066', '#c68a51', '#1d394d', '#1f3c51', '#1b140d',
+        '#622900', '#713002', '#411a00', '#df7126', '#ffb578',
+        '#42f5ff', '#ff2b70', '#99a8bd'
+      ].forEach(addHex);
+
+      // Smooth ramps along each major visual layer (sky, clouds, ocean, sand, wood, inversion, glitch)
+      const ramps = [
+        ['#0d0c18', '#2d2b45', 10],
+        ['#222034', '#cbdbfc', 12],
+        ['#1c3549', '#3f749b', 14],
+        ['#336c95', '#dbe7ff', 14],
+        ['#7a4c25', '#f2c89b', 14],
+        ['#281000', '#87400d', 14],
+        ['#000000', '#512403', 10],
+        ['#000000', '#ffffff', 16],
+        ['#141422', '#42f5ff', 8],
+        ['#1a1020', '#ff2b70', 8],
+        ['#3a1904', '#df7126', 8]
+      ];
+      for (const [aHex, bHex, steps] of ramps) {
+        const a = hexToRgb(aHex);
+        const b = hexToRgb(bHex);
+        for (let i = 1; i < steps - 1; i++) {
+          const f = i / (steps - 1);
+          colors.push([
+            Math.round(lerp(a[0], b[0], f)),
+            Math.round(lerp(a[1], b[1], f)),
+            Math.round(lerp(a[2], b[2], f))
+          ]);
+        }
+      }
+
+      // Fill remaining slots up to 256 with a compact 5x5x4 fallback RGB cube
+      for (let r = 0; r < 5 && colors.length < 256; r++) {
+        for (let g = 0; g < 5 && colors.length < 256; g++) {
+          for (let b = 0; b < 4 && colors.length < 256; b++) {
+            colors.push([
+              Math.round((r / 4) * 255),
+              Math.round((g / 4) * 255),
+              Math.round((b / 3) * 255)
+            ]);
+          }
+        }
+      }
+      while (colors.length < 256) colors.push([0, 0, 0]);
+      return colors.slice(0, 256);
+    }
+
+    function encodeGif89a(framesIndices, width, height, palette, delayCs) {
+      const out = [];
+      const writeByte = (b) => out.push(b & 255);
+      const writeWord = (w) => { out.push(w & 255, (w >> 8) & 255); };
+      const writeStr = (s) => { for (let i = 0; i < s.length; i++) out.push(s.charCodeAt(i)); };
+
+      // Header
+      writeStr('GIF89a');
+
+      // Logical Screen Descriptor (Global Color Table, 256 colors)
+      writeWord(width);
+      writeWord(height);
+      writeByte(0xf7); // GCT flag=1, color res=7, sort=0, size=7 (2^(7+1)=256)
+      writeByte(0);    // Background color index
+      writeByte(0);    // Pixel aspect ratio
+
+      // Global Color Table (256 * 3 bytes)
+      for (let i = 0; i < 256; i++) {
+        const c = palette[i];
+        writeByte(c[0]);
+        writeByte(c[1]);
+        writeByte(c[2]);
+      }
+
+      // NETSCAPE2.0 Infinite Loop Extension
+      writeByte(0x21);
+      writeByte(0xff);
+      writeByte(11);
+      writeStr('NETSCAPE2.0');
+      writeByte(3);
+      writeByte(1);
+      writeWord(0); // Loop count = 0 (infinite)
+      writeByte(0);
+
+      // LZW compressor for 8-bit color indices
+      function writeLzwData(indices) {
+        const minCodeSize = 8;
+        const clearCode = 1 << minCodeSize; // 256
+        const eoiCode = clearCode + 1;      // 257
+        writeByte(minCodeSize);
+
+        const subBlock = new Uint8Array(255);
+        let subLen = 0;
+        let bitBuf = 0;
+        let bitCount = 0;
+
+        function flushSubBlock() {
+          if (subLen > 0) {
+            writeByte(subLen);
+            for (let i = 0; i < subLen; i++) writeByte(subBlock[i]);
+            subLen = 0;
+          }
+        }
+
+        function emitCode(code, size) {
+          bitBuf |= (code << bitCount);
+          bitCount += size;
+          while (bitCount >= 8) {
+            subBlock[subLen++] = bitBuf & 255;
+            bitBuf >>>= 8;
+            bitCount -= 8;
+            if (subLen === 255) flushSubBlock();
+          }
+        }
+
+        // Open-addressing hash table for fast prefix+char -> code lookup
+        const HASH_SIZE = 8192; // Power of 2, > 2x max 4096 codes
+        const hashKey = new Int32Array(HASH_SIZE);
+        const hashVal = new Int16Array(HASH_SIZE);
+        hashKey.fill(-1);
+
+        let nextCode = eoiCode + 1;
+        let codeSize = minCodeSize + 1;
+
+        function resetTable() {
+          hashKey.fill(-1);
+          nextCode = eoiCode + 1;
+          codeSize = minCodeSize + 1;
+        }
+
+        emitCode(clearCode, codeSize);
+        let prefix = indices[0];
+
+        for (let i = 1; i < indices.length; i++) {
+          const ch = indices[i];
+          const key = (prefix << 8) | ch;
+          let slot = ((key * 2654435761) >>> 19) & (HASH_SIZE - 1);
+          let found = -1;
+
+          while (hashKey[slot] !== -1) {
+            if (hashKey[slot] === key) {
+              found = hashVal[slot];
+              break;
+            }
+            slot = (slot + 1) & (HASH_SIZE - 1);
+          }
+
+          if (found !== -1) {
+            prefix = found;
+          } else {
+            emitCode(prefix, codeSize);
+            if (nextCode < 4096) {
+              hashKey[slot] = key;
+              hashVal[slot] = nextCode++;
+              if (nextCode > (1 << codeSize) && codeSize < 12) {
+                codeSize++;
+              }
+            } else {
+              emitCode(clearCode, codeSize);
+              resetTable();
+            }
+            prefix = ch;
+          }
+        }
+
+        emitCode(prefix, codeSize);
+        emitCode(eoiCode, codeSize);
+        if (bitCount > 0) {
+          subBlock[subLen++] = bitBuf & 255;
+        }
+        flushSubBlock();
+        writeByte(0); // Block terminator
+      }
+
+      // Write each frame
+      for (let f = 0; f < framesIndices.length; f++) {
+        // Graphic Control Extension
+        writeByte(0x21);
+        writeByte(0xf9);
+        writeByte(4);
+        writeByte(0x04); // Disposal: none/overwrite full frame
+        writeWord(delayCs);
+        writeByte(0);
+        writeByte(0);
+
+        // Image Descriptor
+        writeByte(0x2c);
+        writeWord(0);
+        writeWord(0);
+        writeWord(width);
+        writeWord(height);
+        writeByte(0); // No local color table
+
+        writeLzwData(framesIndices[f]);
+      }
+
+      writeByte(0x3b); // GIF Trailer
+      return new Uint8Array(out);
+    }
+
+    // Fast nearest-palette quantizer with 15-bit RGB cache (32x32x32 LUT)
+    function createQuantizer(palette) {
+      const lut = new Int16Array(32768);
+      lut.fill(-1);
+
+      return function quantizeImageData(rgba) {
+        const pxCount = rgba.length >>> 2;
+        const out = new Uint8Array(pxCount);
+        for (let i = 0, p = 0; p < pxCount; i += 4, p++) {
+          const r = rgba[i];
+          const g = rgba[i + 1];
+          const b = rgba[i + 2];
+          const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+          let idx = lut[key];
+          if (idx === -1) {
+            let bestD = 1e9;
+            let bestI = 0;
+            for (let c = 0; c < 256; c++) {
+              const pr = palette[c][0] - r;
+              const pg = palette[c][1] - g;
+              const pb = palette[c][2] - b;
+              const d = pr * pr * 2 + pg * pg * 4 + pb * pb * 3;
+              if (d < bestD) {
+                bestD = d;
+                bestI = c;
+                if (d === 0) break;
+              }
+            }
+            lut[key] = idx = bestI;
+          }
+          out[p] = idx;
+        }
+        return out;
+      };
+    }
+
+    /* =========================================================================
+     * 7.5 PROCEDURAL WEB AUDIO SOUNDSCAPE, SFX CUES & WEBM AUDIO MUXER
+     * =======================================================================*/
+    const AUDIO_CUES = (() => {
+      const cues = [];
+
+      // Rhythmic soft sand footsteps synchronized to walkSteps (2 Hz -> every 0.5s, planting at 0.25, 0.75, ...)
+      for (let step = 0; step < 15; step++) {
+        const ft = 0.25 + step * 0.5;
+        const fade = ft > 6.8 ? clamp(1 - (ft - 6.8) / 1.1, 0.22, 1) : 1.0;
+        cues.push({ t: ft, type: 'footstep', pan: step % 2 === 0 ? -0.14 : 0.14, gain: 0.9 * fade, seed: step });
+      }
+      // Final slowing half-step as the traveler freezes in Act IVa
+      cues.push({ t: 7.78, type: 'footstep', pan: 0.12, gain: 0.36, seed: 15 });
+
+      // Foreground wooden post air-whoosh as it sweeps directly across center-screen
+      cues.push({ t: 4.18, type: 'postWhoosh', dur: 0.82 });
+
+      // Act IIa: Subtle escalating moon glitch tremors
+      cues.push({ t: 2.34, type: 'glitchTremor', intensity: 0.45, pan: -0.05 });
+      cues.push({ t: 2.62, type: 'glitchTremor', intensity: 0.65, pan: 0.08 });
+      cues.push({ t: 2.84, type: 'glitchTremor', intensity: 0.85, pan: -0.10 });
+
+      // Act IIb: Screen-wide stereo-panned moon teleport zaps (exact stops[i].t0 & X positions!)
+      cues.push({ t: 3.00, type: 'teleportZap', pan:  0.70, pitch: 1.05, muffled: false }); // x=848 right ocean
+      cues.push({ t: 3.30, type: 'teleportZap', pan: -0.76, pitch: 1.28, muffled: false }); // x=118 upper-left
+      cues.push({ t: 3.58, type: 'teleportZap', pan:  0.84, pitch: 1.48, muffled: false }); // x=912 top-right
+      cues.push({ t: 3.84, type: 'teleportZap', pan: -0.82, pitch: 0.82, muffled: false }); // x=92 bottom-left
+      cues.push({ t: 4.24, type: 'teleportZap', pan:  0.00, pitch: 0.92, muffled: true  }); // x=492 behind post
+      cues.push({ t: 4.64, type: 'teleportZap', pan: -0.04, pitch: 1.38, muffled: true  }); // x=472 top-center
+
+      // Act III: Clouds awaken into eyes + eerie pupil glance shimmers
+      cues.push({ t: 5.85, type: 'cloudsAwaken' });
+      cues.push({ t: 6.08, type: 'eyeGlance', pan:  0.48, freq: 740 });
+      cues.push({ t: 6.52, type: 'eyeGlance', pan: -0.52, freq: 860 });
+
+      // Act IIIb: Reverse intake -> razor-sharp diagonal white glitch-slash (peaks at t=7.20s)
+      cues.push({ t: 6.95, type: 'slashIntake' });
+      cues.push({ t: 7.12, type: 'diagonalSlash' });
+
+      // Act IVa: Tense heartbeat thumps during eclipse stare-down
+      cues.push({ t: 7.56, type: 'heartbeat', gain: 0.72 });
+      cues.push({ t: 7.88, type: 'heartbeat', gain: 0.96 });
+
+      // Act IVb: THE COLOR-INVERSION IMPACT + inverted static glitch pulses
+      cues.push({ t: 8.15, type: 'inversionDrop' });
+      cues.push({ t: 8.42, type: 'invertCrackle', pan: -0.28 });
+      cues.push({ t: 8.68, type: 'invertCrackle', pan:  0.32 });
+
+      // Loop seam: Crisp CRT/tape snap cut back to peaceful Act I
+      cues.push({ t: 8.92, type: 'snapCut' });
+
+      cues.sort((a, b) => a.t - b.t);
+      return cues;
+    })();
+
+    class ShorelineSoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.ready = false;
+        this.monitorEnabled = false;
+        this.exportActive = false;
+        this.masterVol = 0.88;
+      }
+
+      async ensureReady() {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+
+        if (!this.ctx) {
+          this.ctx = new AC();
+          this._buildGraph();
+        }
+        if (this.ctx.state === 'suspended') {
+          await this.ctx.resume();
+        }
+        this.ready = true;
+        return true;
+      }
+
+      _createNoiseBuffer(seconds, pink) {
+        const sr = this.ctx.sampleRate;
+        const len = Math.floor(sr * seconds);
+        const buf = this.ctx.createBuffer(2, len, sr);
+        for (let ch = 0; ch < 2; ch++) {
+          const d = buf.getChannelData(ch);
+          let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+          for (let i = 0; i < len; i++) {
+            const w = seededRand(8000 + ch * 99991 + i) * 2 - 1;
+            if (!pink) {
+              d[i] = w;
+            } else {
+              b0 = 0.99886 * b0 + w * 0.0555179;
+              b1 = 0.99332 * b1 + w * 0.0750759;
+              b2 = 0.96900 * b2 + w * 0.1538520;
+              b3 = 0.86650 * b3 + w * 0.3104856;
+              b4 = 0.55000 * b4 + w * 0.5329522;
+              b5 = -0.7616 * b5 - w * 0.0168980;
+              d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+              b6 = w * 0.115926;
+            }
+          }
+        }
+        return buf;
+      }
+
+      _createReverbIR(seconds) {
+        const sr = this.ctx.sampleRate;
+        const len = Math.floor(sr * seconds);
+        const buf = this.ctx.createBuffer(2, len, sr);
+        for (let ch = 0; ch < 2; ch++) {
+          const d = buf.getChannelData(ch);
+          let lp = 0;
+          for (let i = 0; i < len; i++) {
+            const env = Math.pow(1 - i / len, 2.7);
+            const raw = (seededRand(40000 + ch * 65537 + i) * 2 - 1) * env;
+            lp = lp * 0.62 + raw * 0.38;
+            d[i] = lp;
+          }
+        }
+        return buf;
+      }
+
+      _panner(pan) {
+        if (this.ctx.createStereoPanner) {
+          const p = this.ctx.createStereoPanner();
+          p.pan.value = clamp(pan, -1, 1);
+          return p;
+        }
+        const g = this.ctx.createGain();
+        return g;
+      }
+
+      _buildGraph() {
+        const ctx = this.ctx;
+        this.whiteNoise = this._createNoiseBuffer(2.5, false);
+        this.pinkNoise = this._createNoiseBuffer(4.0, true);
+
+        // Master output bus with brickwall limiter -> splits cleanly to Speakers + WebM Export
+        this.masterSum = ctx.createGain();
+        this.masterSum.gain.value = 1.0;
+
+        this.compressor = ctx.createDynamicsCompressor();
+        this.compressor.threshold.value = -10;
+        this.compressor.knee.value = 12;
+        this.compressor.ratio.value = 8;
+        this.compressor.attack.value = 0.003;
+        this.compressor.release.value = 0.14;
+
+        this.monitorGain = ctx.createGain();
+        this.monitorGain.gain.value = 0;
+
+        this.exportGain = ctx.createGain();
+        this.exportGain.gain.value = 0;
+
+        this.exportDest = ctx.createMediaStreamDestination();
+
+        this.masterSum.connect(this.compressor);
+        this.compressor.connect(this.monitorGain);
+        this.monitorGain.connect(ctx.destination);
+        this.compressor.connect(this.exportGain);
+        this.exportGain.connect(this.exportDest);
+
+        // SFX bus with subtle coastal/hall reverb send
+        this.sfxBus = ctx.createGain();
+        this.sfxBus.gain.value = 1.0;
+
+        this.sfxDry = ctx.createGain();
+        this.sfxDry.gain.value = 0.86;
+        this.sfxBus.connect(this.sfxDry);
+        this.sfxDry.connect(this.masterSum);
+
+        this.reverbSend = ctx.createGain();
+        this.reverbSend.gain.value = 0.28;
+        this.convolver = ctx.createConvolver();
+        this.convolver.buffer = this._createReverbIR(1.35);
+        this.sfxBus.connect(this.reverbSend);
+        this.reverbSend.connect(this.convolver);
+        this.convolver.connect(this.masterSum);
+
+        // Continuous ambient bed bus (gates cleanly to 0 when paused)
+        this.bedMaster = ctx.createGain();
+        this.bedMaster.gain.value = 0;
+        this.bedMaster.connect(this.masterSum);
+
+        // 1. Night Ocean Surf Layer (filtered stereo pink noise modulated by wave swell)
+        this.surfSrc = ctx.createBufferSource();
+        this.surfSrc.buffer = this.pinkNoise;
+        this.surfSrc.loop = true;
+
+        this.surfFilter = ctx.createBiquadFilter();
+        this.surfFilter.type = 'lowpass';
+        this.surfFilter.frequency.value = 460;
+        this.surfFilter.Q.value = 0.7;
+
+        this.surfGain = ctx.createGain();
+        this.surfGain.gain.value = 0.26;
+
+        this.surfSrc.connect(this.surfFilter);
+        this.surfFilter.connect(this.surfGain);
+        this.surfGain.connect(this.bedMaster);
+        this.surfSrc.start();
+
+        // 2. Atmospheric Night Drone + Dissonant Awakening Pad (D2=73.4Hz, A2=110Hz, Tension Eb2=77.8Hz)
+        this.droneFilter = ctx.createBiquadFilter();
+        this.droneFilter.type = 'lowpass';
+        this.droneFilter.frequency.value = 220;
+        this.droneFilter.Q.value = 1.2;
+
+        this.droneGain = ctx.createGain();
+        this.droneGain.gain.value = 0.14;
+
+        this.droneFilter.connect(this.droneGain);
+        this.droneGain.connect(this.bedMaster);
+
+        this.droneOsc1 = ctx.createOscillator();
+        this.droneOsc1.type = 'triangle';
+        this.droneOsc1.frequency.value = 73.42; // D2
+        const d1g = ctx.createGain();
+        d1g.gain.value = 0.55;
+        this.droneOsc1.connect(d1g);
+        d1g.connect(this.droneFilter);
+        this.droneOsc1.start();
+
+        this.droneOsc2 = ctx.createOscillator();
+        this.droneOsc2.type = 'sine';
+        this.droneOsc2.frequency.value = 110.0; // A2
+        const d2g = ctx.createGain();
+        d2g.gain.value = 0.32;
+        this.droneOsc2.connect(d2g);
+        d2g.connect(this.droneFilter);
+        this.droneOsc2.start();
+
+        // Eerie dissonant tension oscillator (fades in during Act III descent & Act IV eclipse)
+        this.tensionOsc = ctx.createOscillator();
+        this.tensionOsc.type = 'sawtooth';
+        this.tensionOsc.frequency.value = 77.78; // Eb2 minor-second rub against D2
+        this.tensionFilter = ctx.createBiquadFilter();
+        this.tensionFilter.type = 'bandpass';
+        this.tensionFilter.frequency.value = 190;
+        this.tensionFilter.Q.value = 2.4;
+        this.tensionGain = ctx.createGain();
+        this.tensionGain.gain.value = 0.0;
+        this.tensionOsc.connect(this.tensionFilter);
+        this.tensionFilter.connect(this.tensionGain);
+        this.tensionGain.connect(this.bedMaster);
+        this.tensionOsc.start();
+
+        // High ethereal ringing shimmer during Act IV eclipse & inversion
+        this.ringOsc = ctx.createOscillator();
+        this.ringOsc.type = 'sine';
+        this.ringOsc.frequency.value = 2349.3; // D7 ghost harmonic
+        this.ringGain = ctx.createGain();
+        this.ringGain.gain.value = 0.0;
+        this.ringOsc.connect(this.ringGain);
+        this.ringGain.connect(this.bedMaster);
+        this.ringOsc.start();
+      }
+
+      setMonitorEnabled(enabled) {
+        this.monitorEnabled = enabled;
+        if (!this.ready) return;
+        const now = this.ctx.currentTime;
+        this.monitorGain.gain.setTargetAtTime(enabled ? this.masterVol : 0, now, 0.025);
+      }
+
+      setExportMode(active) {
+        this.exportActive = active;
+        if (!this.ready) return;
+        const now = this.ctx.currentTime;
+        this.exportGain.gain.cancelScheduledValues(now);
+        this.exportGain.gain.setTargetAtTime(active ? this.masterVol : 0, now, 0.012);
+      }
+
+      fadeOutExport(sec = 0.035) {
+        if (!this.ready) return;
+        const now = this.ctx.currentTime;
+        this.exportGain.gain.cancelScheduledValues(now);
+        this.exportGain.gain.setValueAtTime(this.exportGain.gain.value, now);
+        this.exportGain.gain.linearRampToValueAtTime(0, now + sec);
+      }
+
+      getExportAudioTrack() {
+        return this.exportDest ? this.exportDest.stream.getAudioTracks()[0] : null;
+      }
+
+      updateContinuous(st, active) {
+        if (!this.ready) return;
+        const now = this.ctx.currentTime;
+        const audible = active && (this.monitorEnabled || this.exportActive);
+        this.bedMaster.gain.setTargetAtTime(audible ? 1.0 : 0.0, now, 0.03);
+        if (!audible) return;
+
+        // 1. Ocean surf swells in exact sync with visual shoreline foam (3 waves per 9.0s)
+        const waveSwell = 0.5 + 0.5 * Math.sin(st.u * Math.PI * 2 * 3);
+        const surfDuck = st.invertMoon ? 0.25 : (1 - smoothstep(7.35, 8.12, st.t) * 0.65);
+        this.surfFilter.frequency.setTargetAtTime(lerp(310, 680, waveSwell) * (0.65 + 0.35 * surfDuck), now, 0.05);
+        this.surfGain.gain.setTargetAtTime(lerp(0.16, 0.29, waveSwell) * surfDuck, now, 0.05);
+
+        // 2. Night drone drops octave/darkens during Act IV inversion
+        const baseFreq = st.invertMoon ? 36.71 : 73.42; // D1 deep sub on inversion vs D2 calm
+        this.droneOsc1.frequency.setTargetAtTime(baseFreq, now, 0.04);
+        this.droneOsc2.frequency.setTargetAtTime(st.invertMoon ? 55.0 : 110.0, now, 0.04);
+        this.droneFilter.frequency.setTargetAtTime(st.invertMoon ? 340 : lerp(180, 320, st.tension), now, 0.05);
+        this.droneGain.gain.setTargetAtTime(st.invertMoon ? 0.36 : lerp(0.12, 0.22, st.tension), now, 0.04);
+
+        // 3. Dissonant tension pad rises across Act III descent & swells in Act IV
+        const descentTension = smoothstep(5.2, 6.95, st.t);
+        const tAmp = st.invertMoon ? 0.24 : descentTension * 0.16 * (1 - st.slashAmount * 0.6);
+        const tFreq = st.invertMoon ? 41.2 : lerp(77.78, 87.31, descentTension);
+        this.tensionOsc.frequency.setTargetAtTime(tFreq, now, 0.05);
+        this.tensionFilter.frequency.setTargetAtTime(st.invertMoon ? 460 : lerp(170, 520, descentTension), now, 0.05);
+        this.tensionGain.gain.setTargetAtTime(tAmp, now, 0.04);
+
+        // 4. Eerie high-frequency eclipse ring during Act IV stare-down & inversion
+        const ringAmp = st.invertMoon
+          ? 0.032
+          : smoothstep(7.45, 8.15, st.t) * 0.026;
+        this.ringOsc.frequency.setTargetAtTime(st.invertMoon ? 2489.0 : lerp(2180, 2380, smoothstep(7.45, 8.15, st.t)), now, 0.05);
+        this.ringGain.gain.setTargetAtTime(ringAmp, now, 0.04);
+      }
+
+      /**
+       * Dispatch all discrete cues in (prevT, curT], handling seamless loop wrap cleanly.
+       */
+      triggerCuesBetween(prevT, curT, glitchScale) {
+        if (!this.ready || (!this.monitorEnabled && !this.exportActive)) return;
+
+        // Avoid cue spam if user drags the timeline scrubber across a wide span
+        const wrapped = curT < prevT;
+        const delta = wrapped ? (DURATION - prevT + curT) : (curT - prevT);
+        if (delta <= 0 || delta > 0.35) return;
+
+        for (let i = 0; i < AUDIO_CUES.length; i++) {
+          const c = AUDIO_CUES[i];
+          const hit = wrapped
+            ? (c.t > prevT || c.t <= curT)
+            : (c.t > prevT && c.t <= curT);
+          if (hit) {
+            this._playCue(c, glitchScale);
+          }
+        }
+      }
+
+      _playCue(cue, glitchScale) {
+        const gScale = 0.2 + 0.8 * clamp(glitchScale, 0, 1.5);
+        switch (cue.type) {
+          case 'footstep': this._sfxFootstep(cue.pan, cue.gain, cue.seed); break;
+          case 'postWhoosh': this._sfxPostWhoosh(cue.dur); break;
+          case 'glitchTremor': this._sfxGlitchTremor(cue.intensity * gScale, cue.pan); break;
+          case 'teleportZap': this._sfxTeleportZap(cue.pan, cue.pitch, cue.muffled, gScale); break;
+          case 'cloudsAwaken': this._sfxCloudsAwaken(); break;
+          case 'eyeGlance': this._sfxEyeGlance(cue.pan, cue.freq); break;
+          case 'slashIntake': this._sfxSlashIntake(gScale); break;
+          case 'diagonalSlash': this._sfxDiagonalSlash(gScale); break;
+          case 'heartbeat': this._sfxHeartbeat(cue.gain); break;
+          case 'inversionDrop': this._sfxInversionDrop(gScale); break;
+          case 'invertCrackle': this._sfxInvertCrackle(cue.pan, gScale); break;
+          case 'snapCut': this._sfxSnapCut(gScale); break;
+        }
+      }
+
+      _sfxFootstep(pan, gainAmt, seed) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const panner = this._panner(pan);
+        panner.connect(this.sfxDry); // Keep footsteps dry & grounded
+
+        // Soft muffled heel thud
+        const osc = ctx.createOscillator();
+        const og = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(92 + (seed % 3) * 8, now);
+        osc.frequency.exponentialRampToValueAtTime(38, now + 0.09);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.linearRampToValueAtTime(0.11 * gainAmt, now + 0.012);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+        osc.connect(og);
+        og.connect(panner);
+        osc.start(now);
+        osc.stop(now + 0.12);
+
+        // Granular soft beach sand crunch
+        const src = ctx.createBufferSource();
+        src.buffer = this.pinkNoise;
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'bandpass';
+        filt.frequency.setValueAtTime(1550 + (seed % 4) * 210, now);
+        filt.Q.value = 1.6;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.linearRampToValueAtTime(0.14 * gainAmt, now + 0.022);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+        src.connect(filt);
+        filt.connect(ng);
+        ng.connect(panner);
+        src.start(now, (seed * 0.23) % 2.5, 0.16);
+      }
+
+      _sfxPostWhoosh(dur) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const src = ctx.createBufferSource();
+        src.buffer = this.pinkNoise;
+
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'bandpass';
+        filt.Q.value = 1.9;
+        filt.frequency.setValueAtTime(140, now);
+        filt.frequency.exponentialRampToValueAtTime(360, now + dur * 0.45);
+        filt.frequency.exponentialRampToValueAtTime(110, now + dur);
+
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.linearRampToValueAtTime(0.32, now + dur * 0.42);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+        const panner = this._panner(-0.75);
+        if (panner.pan) {
+          panner.pan.setValueAtTime(-0.75, now);
+          panner.pan.linearRampToValueAtTime(0.75, now + dur);
+        }
+
+        src.connect(filt);
+        filt.connect(g);
+        g.connect(panner);
+        panner.connect(this.sfxDry);
+        src.start(now, 0.4, dur + 0.05);
+      }
+
+      _sfxGlitchTremor(intensity, pan) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const panner = this._panner(pan);
+        panner.connect(this.sfxBus);
+
+        // Short digital static burst
+        const src = ctx.createBufferSource();
+        src.buffer = this.whiteNoise;
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'bandpass';
+        hp.frequency.setValueAtTime(2600 + intensity * 1400, now);
+        hp.Q.value = 3.2;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.linearRampToValueAtTime(0.16 * intensity, now + 0.006);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.085);
+        src.connect(hp);
+        hp.connect(ng);
+        ng.connect(panner);
+        src.start(now, 0.2, 0.1);
+
+        // Stepped micro FM blip
+        const osc = ctx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(420, now);
+        osc.frequency.setValueAtTime(980, now + 0.025);
+        osc.frequency.setValueAtTime(260, now + 0.05);
+        const og = ctx.createGain();
+        og.gain.setValueAtTime(0.05 * intensity, now);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+        osc.connect(og);
+        og.connect(panner);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      _sfxTeleportZap(pan, pitch, muffled, gScale) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const panner = this._panner(pan);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = muffled ? 1400 : 6800;
+        panner.connect(lp);
+        lp.connect(this.sfxBus);
+
+        // Crisp electronic warp chirp (stepped frequencies for glitchy feel)
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280 * pitch, now);
+        osc.frequency.setValueAtTime(1120 * pitch, now + 0.022);
+        osc.frequency.exponentialRampToValueAtTime(190 * pitch, now + 0.14);
+
+        const og = ctx.createGain();
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.linearRampToValueAtTime(0.16 * gScale, now + 0.008);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+        osc.connect(og);
+        og.connect(panner);
+        osc.start(now);
+        osc.stop(now + 0.16);
+
+        // Static rip transient
+        const src = ctx.createBufferSource();
+        src.buffer = this.whiteNoise;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(3400 * pitch, now);
+        bp.Q.value = 1.8;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.22 * gScale, now);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.095);
+        src.connect(bp);
+        bp.connect(ng);
+        ng.connect(panner);
+        src.start(now, (pitch * 0.7) % 1.5, 0.11);
+      }
+
+      _sfxCloudsAwaken() {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        // Eerie hollow choir-like chord (D4 + Eb4 + Ab4) swelling softly as eyelids part
+        const freqs = [293.66, 311.13, 415.30];
+        freqs.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          osc.type = idx === 1 ? 'triangle' : 'sine';
+          osc.frequency.setValueAtTime(f * 0.985, now);
+          osc.frequency.linearRampToValueAtTime(f, now + 0.75);
+
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.055, now + 0.35);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + 1.25);
+
+          const panner = this._panner(idx === 0 ? -0.45 : idx === 2 ? 0.45 : 0);
+          osc.connect(g);
+          g.connect(panner);
+          panner.connect(this.sfxBus);
+          osc.start(now);
+          osc.stop(now + 1.3);
+        });
+      }
+
+      _sfxEyeGlance(pan, freq) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const panner = this._panner(pan);
+        panner.connect(this.sfxBus);
+
+        // Glassy high-Q resonant sweep mimicking a sudden giant eye glance
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.32, now + 0.14);
+
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.linearRampToValueAtTime(0.065, now + 0.025);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+
+        osc.connect(g);
+        g.connect(panner);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+
+      _sfxSlashIntake(gScale) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        // Quick reverse-swell suction right before the diagonal moon slash
+        const src = ctx.createBufferSource();
+        src.buffer = this.whiteNoise;
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'bandpass';
+        filt.Q.value = 3.5;
+        filt.frequency.setValueAtTime(420, now);
+        filt.frequency.exponentialRampToValueAtTime(4200, now + 0.16);
+
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.24 * gScale, now + 0.155);
+        g.gain.linearRampToValueAtTime(0.0001, now + 0.175);
+
+        src.connect(filt);
+        filt.connect(g);
+        g.connect(this.sfxBus);
+        src.start(now, 0.3, 0.19);
+      }
+
+      _sfxDiagonalSlash(gScale) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const panner = this._panner(-0.85);
+        if (panner.pan) {
+          panner.pan.setValueAtTime(-0.85, now);
+          panner.pan.linearRampToValueAtTime(0.85, now + 0.26);
+        }
+        panner.connect(this.sfxBus);
+
+        // 1. Razor-sharp metallic whip sweep
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(2400, now);
+        osc.frequency.exponentialRampToValueAtTime(160, now + 0.28);
+        const og = ctx.createGain();
+        og.gain.setValueAtTime(0.24 * gScale, now);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+        osc.connect(og);
+        og.connect(panner);
+        osc.start(now);
+        osc.stop(now + 0.34);
+
+        // 2. Blinding white-noise digital tear
+        const src = ctx.createBufferSource();
+        src.buffer = this.whiteNoise;
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(1600, now);
+        hp.frequency.exponentialRampToValueAtTime(420, now + 0.26);
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.38 * gScale, now);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.30);
+        src.connect(hp);
+        hp.connect(ng);
+        ng.connect(panner);
+        src.start(now, 0.1, 0.32);
+
+        // 3. Tight center sub-punch impact
+        const sub = ctx.createOscillator();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(140, now);
+        sub.frequency.exponentialRampToValueAtTime(34, now + 0.22);
+        const sg = ctx.createGain();
+        sg.gain.setValueAtTime(0.42, now);
+        sg.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+        sub.connect(sg);
+        sg.connect(this.sfxDry);
+        sub.start(now);
+        sub.stop(now + 0.28);
+      }
+
+      _sfxHeartbeat(gainAmt) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(66, now);
+        osc.frequency.exponentialRampToValueAtTime(32, now + 0.16);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.linearRampToValueAtTime(0.32 * gainAmt, now + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.20);
+        osc.connect(g);
+        g.connect(this.sfxDry);
+        osc.start(now);
+        osc.stop(now + 0.22);
+      }
+
+      _sfxInversionDrop(gScale) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // 1. Massive cinema sub-bass impact drop (120Hz -> 32Hz)
+        const sub = ctx.createOscillator();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(118, now);
+        sub.frequency.exponentialRampToValueAtTime(32, now + 0.65);
+        const sg = ctx.createGain();
+        sg.gain.setValueAtTime(0.62, now);
+        sg.gain.exponentialRampToValueAtTime(0.0001, now + 0.78);
+        sub.connect(sg);
+        sg.connect(this.sfxDry);
+        sub.start(now);
+        sub.stop(now + 0.80);
+
+        // 2. Inverted-reality metallic horror sting (detuned dissonant tritone + minor 9th)
+        const stingFreqs = [146.83, 207.65, 311.13, 622.25];
+        stingFreqs.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          osc.type = idx < 2 ? 'sawtooth' : 'triangle';
+          osc.frequency.setValueAtTime(f * 1.03, now);
+          osc.frequency.exponentialRampToValueAtTime(f * 0.96, now + 0.72);
+
+          const bp = ctx.createBiquadFilter();
+          bp.type = 'lowpass';
+          bp.frequency.setValueAtTime(2400, now);
+          bp.frequency.exponentialRampToValueAtTime(520, now + 0.72);
+
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.11, now + 0.014);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + 0.76);
+
+          const panner = this._panner((idx - 1.5) * 0.45);
+          osc.connect(bp);
+          bp.connect(g);
+          g.connect(panner);
+          panner.connect(this.sfxBus);
+          osc.start(now);
+          osc.stop(now + 0.78);
+        });
+
+        // 3. Sharp crunch static flash at exact inversion moment
+        const src = ctx.createBufferSource();
+        src.buffer = this.whiteNoise;
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'bandpass';
+        filt.frequency.value = 1900;
+        filt.Q.value = 1.2;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.32 * gScale, now);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+        src.connect(filt);
+        filt.connect(ng);
+        ng.connect(this.sfxBus);
+        src.start(now, 0.5, 0.18);
+      }
+
+      _sfxInvertCrackle(pan, gScale) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const panner = this._panner(pan);
+        panner.connect(this.sfxBus);
+
+        const src = ctx.createBufferSource();
+        src.buffer = this.whiteNoise;
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'bandpass';
+        hp.frequency.value = 3200;
+        hp.Q.value = 2.8;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.18 * gScale, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.065);
+        src.connect(hp);
+        hp.connect(g);
+        g.connect(panner);
+        src.start(now, Math.abs(pan), 0.075);
+      }
+
+      _sfxSnapCut(gScale) {
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        // Crisp 60ms CRT/tape snap cut back to serene shore
+        const src = ctx.createBufferSource();
+        src.buffer = this.whiteNoise;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(4400, now);
+        bp.frequency.exponentialRampToValueAtTime(880, now + 0.055);
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.28 * gScale, now);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.065);
+        src.connect(bp);
+        bp.connect(ng);
+        ng.connect(this.sfxDry);
+        src.start(now, 0.9, 0.07);
+      }
+    }
+
+    const soundEngine = new ShorelineSoundEngine();
+
+    /* =========================================================================
+     * 8. STUDIO PLAYBACK LOOP, TIMELINE CONTROLS & EXPORTERS
+     * =======================================================================*/
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const soundBtn = document.getElementById('soundBtn');
+    const actPill = document.getElementById('actPill');
+    const timeReadout = document.getElementById('timeReadout');
+    const timelineTrack = document.getElementById('timelineTrack');
+    const timelineProgress = document.getElementById('timelineProgress');
+    const timelineThumb = document.getElementById('timelineThumb');
+    const glitchSlider = document.getElementById('glitchSlider');
+    const glitchVal = document.getElementById('glitchVal');
+    const exportWebmBtn = document.getElementById('exportWebmBtn');
+    const exportGifBtn = document.getElementById('exportGifBtn');
+    const exportOverlay = document.getElementById('exportOverlay');
+    const exportLabel = document.getElementById('exportLabel');
+    const exportBarFill = document.getElementById('exportBarFill');
+    const speedBtns = Array.from(document.querySelectorAll('.speed-btn'));
+    const actJumpBtns = Array.from(document.querySelectorAll('[data-seek]'));
+
+    let isPlaying = true;
+    let isExporting = false;
+    let currentTime = 0.0;
+    let playbackSpeed = 1.0;
+    let glitchScale = 1.0;
+    let lastPerf = performance.now();
+    let fpsSmoothed = 60;
+
+    function updateSoundButton() {
+      const on = soundEngine.monitorEnabled;
+      soundBtn.textContent = on ? '🔊 Sound' : '🔇 Sound';
+      soundBtn.classList.toggle('active', on);
+    }
+
+    async function toggleSound() {
+      if (isExporting) return;
+      const ok = await soundEngine.ensureReady();
+      if (!ok) return;
+      soundEngine.setMonitorEnabled(!soundEngine.monitorEnabled);
+      updateSoundButton();
+      if (soundEngine.monitorEnabled && isPlaying) {
+        const st = computeState(currentTime, glitchScale);
+        soundEngine.updateContinuous(st, true);
+      } else {
+        soundEngine.updateContinuous(computeState(currentTime, glitchScale), false);
+      }
+    }
+
+    function updateHUD(st) {
+      const pct = (st.t / DURATION) * 100;
+      timelineProgress.style.width = `${pct.toFixed(2)}%`;
+      timelineThumb.style.left = `${pct.toFixed(2)}%`;
+      timelineTrack.setAttribute('aria-valuenow', st.t.toFixed(2));
+      actPill.textContent = st.actLabel;
+      actPill.classList.toggle('invert-active', st.invertMoon || st.invertClouds);
+      timeReadout.textContent = `${st.t.toFixed(2)}s / ${DURATION.toFixed(2)}s · ${Math.round(fpsSmoothed)} fps`;
+    }
+
+    function setPlaying(val) {
+      isPlaying = val;
+      playPauseBtn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
+      lastPerf = performance.now();
+      soundEngine.updateContinuous(computeState(currentTime, glitchScale), isPlaying);
+    }
+
+    function seekTo(sec) {
+      currentTime = mod(sec, DURATION);
+      const st = renderFrame(stageCtx, currentTime, glitchScale);
+      updateHUD(st);
+      soundEngine.updateContinuous(st, isPlaying && !draggingTimeline);
+    }
+
+    function tick(now) {
+      const dt = Math.min(0.1, (now - lastPerf) / 1000);
+      lastPerf = now;
+
+      if (dt > 0.001) {
+        const instFps = 1 / dt;
+        fpsSmoothed = fpsSmoothed * 0.9 + clamp(instFps, 1, 144) * 0.1;
+      }
+
+      if (isPlaying && !isExporting) {
+        const prevT = currentTime;
+        currentTime = mod(currentTime + dt * playbackSpeed, DURATION);
+        const st = renderFrame(stageCtx, currentTime, glitchScale);
+        updateHUD(st);
+        soundEngine.updateContinuous(st, true);
+        soundEngine.triggerCuesBetween(prevT, currentTime, glitchScale);
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    // Playback buttons
+    playPauseBtn.addEventListener('click', () => {
+      if (isExporting) return;
+      setPlaying(!isPlaying);
+    });
+
+    restartBtn.addEventListener('click', () => {
+      if (isExporting) return;
+      seekTo(0);
+    });
+
+    soundBtn.addEventListener('click', toggleSound);
+
+    // Clicking the canvas toggles sound on if currently muted, or pauses/plays if already unmuted
+    stageCanvas.style.cursor = 'pointer';
+    stageCanvas.addEventListener('click', () => {
+      if (isExporting) return;
+      if (!soundEngine.monitorEnabled) {
+        toggleSound();
+      } else {
+        setPlaying(!isPlaying);
+      }
+    });
+
+    // Speed buttons
+    speedBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        playbackSpeed = parseFloat(btn.dataset.speed);
+        speedBtns.forEach((b) => b.classList.toggle('active', b === btn));
+      });
+    });
+
+    // Act jump buttons
+    actJumpBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (isExporting) return;
+        seekTo(parseFloat(btn.dataset.seek));
+      });
+    });
+
+    // Glitch slider
+    glitchSlider.addEventListener('input', () => {
+      glitchScale = parseInt(glitchSlider.value, 10) / 100;
+      glitchVal.textContent = `${glitchSlider.value}%`;
+      if (!isPlaying && !isExporting) {
+        const st = renderFrame(stageCtx, currentTime, glitchScale);
+        updateHUD(st);
+      }
+    });
+
+    // Interactive pointer scrubbing on timeline
+    let draggingTimeline = false;
+    function scrubFromPointer(clientX) {
+      const rect = timelineTrack.getBoundingClientRect();
+      const ratio = clamp((clientX - rect.left) / rect.width, 0, 0.9999);
+      seekTo(ratio * DURATION);
+    }
+
+    timelineTrack.addEventListener('pointerdown', (e) => {
+      if (isExporting) return;
+      draggingTimeline = true;
+      timelineTrack.setPointerCapture(e.pointerId);
+      scrubFromPointer(e.clientX);
+    });
+
+    timelineTrack.addEventListener('pointermove', (e) => {
+      if (!draggingTimeline || isExporting) return;
+      scrubFromPointer(e.clientX);
+    });
+
+    timelineTrack.addEventListener('pointerup', () => {
+      draggingTimeline = false;
+      soundEngine.updateContinuous(computeState(currentTime, glitchScale), isPlaying);
+    });
+
+    // Keyboard shortcuts: Space (play/pause), R (restart), M (sound), Left/Right (step 0.1s)
+    window.addEventListener('keydown', (e) => {
+      if (isExporting) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setPlaying(!isPlaying);
+      } else if (e.key === 'r' || e.key === 'R') {
+        seekTo(0);
+      } else if (e.key === 'm' || e.key === 'M') {
+        toggleSound();
+      } else if (e.code === 'ArrowRight') {
+        setPlaying(false);
+        seekTo(currentTime + 0.1);
+      } else if (e.code === 'ArrowLeft') {
+        setPlaying(false);
+        seekTo(currentTime - 0.1);
+      }
+    });
+
+    // Helper for triggering download
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function setExportUi(active, label = '', pct = 0) {
+      isExporting = active;
+      exportOverlay.classList.toggle('visible', active);
+      exportLabel.textContent = label;
+      exportBarFill.style.width = `${clamp(pct, 0, 100).toFixed(1)}%`;
+      exportWebmBtn.disabled = active;
+      exportGifBtn.disabled = active;
+      playPauseBtn.disabled = active;
+      soundBtn.disabled = active;
+    }
+
+    // Export WebM (1 exact 9.0s loop at 60 FPS with full synchronized stereo Opus audio!)
+    exportWebmBtn.addEventListener('click', async () => {
+      if (isExporting) return;
+      if (typeof MediaRecorder === 'undefined' || !stageCanvas.captureStream) {
+        alert('MediaRecorder WebM export is not supported in this browser.');
+        return;
+      }
+
+      const wasPlaying = isPlaying;
+      const savedTime = currentTime;
+
+      // Unlock & prepare full-volume Web Audio export bus (works even if speaker preview is muted!)
+      const audioOk = await soundEngine.ensureReady();
+      const videoStream = stageCanvas.captureStream(60);
+      const tracks = [...videoStream.getVideoTracks()];
+      const audioTrack = audioOk ? soundEngine.getExportAudioTrack() : null;
+      if (audioTrack) tracks.push(audioTrack);
+      const combinedStream = new MediaStream(tracks);
+
+      // Prefer WebM containers with explicit Opus audio + VP9/VP8 video
+      const mimeCandidates = audioTrack
+        ? [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm;codecs=vp9',
+            'video/webm;codecs=vp8',
+            'video/webm'
+          ]
+        : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+      const mimeType = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+
+      const recOptions = mimeType
+        ? { mimeType, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 }
+        : { videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 };
+
+      const recorder = new MediaRecorder(combinedStream, recOptions);
+      const chunks = [];
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+      };
+
+      recorder.onstop = () => {
+        soundEngine.setExportMode(false);
+        const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
+        triggerDownload(blob, 'shoreline-moon-glitch.webm');
+        setExportUi(false);
+        seekTo(savedTime);
+        setPlaying(wasPlaying);
+      };
+
+      // Prime frame 0 & ambient bed for 1 frame before starting MediaRecorder for clean frame-0 A/V sync
+      setExportUi(true, 'Recording 9.0s WebM + audio…', 0);
+      soundEngine.setExportMode(true);
+      const st0 = renderFrame(stageCtx, 0, glitchScale);
+      updateHUD(st0);
+      soundEngine.updateContinuous(st0, true);
+      await new Promise((r) => requestAnimationFrame(r));
+
+      recorder.start();
+      let startMs = null;
+      let prevRecT = -0.001;
+      let fadedOut = false;
+
+      function stepRecord(now) {
+        if (startMs === null) startMs = now;
+        const elapsed = Math.max(0, (now - startMs) / 1000);
+        if (elapsed >= DURATION) {
+          soundEngine.triggerCuesBetween(prevRecT, DURATION, glitchScale);
+          renderFrame(stageCtx, DURATION - 0.001, glitchScale);
+          if (!fadedOut) {
+            soundEngine.fadeOutExport(0.03);
+            fadedOut = true;
+          }
+          setExportUi(true, 'Finalizing WebM video + audio…', 100);
+          setTimeout(() => {
+            if (recorder.state !== 'inactive') recorder.stop();
+          }, 45);
+          return;
+        }
+
+        const st = renderFrame(stageCtx, elapsed, glitchScale);
+        updateHUD(st);
+        soundEngine.updateContinuous(st, true);
+        soundEngine.triggerCuesBetween(prevRecT, elapsed, glitchScale);
+        prevRecT = elapsed;
+
+        if (!fadedOut && elapsed >= DURATION - 0.04) {
+          soundEngine.fadeOutExport(0.035);
+          fadedOut = true;
+        }
+
+        setExportUi(
+          true,
+          `Recording WebM + audio (${elapsed.toFixed(1)}s / ${DURATION.toFixed(1)}s)…`,
+          (elapsed / DURATION) * 100
+        );
+        requestAnimationFrame(stepRecord);
+      }
+      requestAnimationFrame(stepRecord);
+    });
+
+    // Export GIF (1 exact 9.0s loop, 512x512 @ 20 FPS = 180 crisp frames, 100% offline LZW)
+    exportGifBtn.addEventListener('click', async () => {
+      if (isExporting) return;
+      const wasPlaying = isPlaying;
+      const savedTime = currentTime;
+
+      const gifSize = 512;
+      const fps = 20;
+      const frameCount = Math.round(DURATION * fps); // 180 frames
+      const delayCs = Math.round(100 / fps);         // 5 centiseconds (50ms)
+
+      const scaleBuf = makeBuffer(gifSize, gifSize);
+      const palette = buildScenePalette();
+      const quantize = createQuantizer(palette);
+      const indexedFrames = [];
+
+      setExportUi(true, 'Rendering GIF frames (0%)…', 0);
+      soundEngine.updateContinuous(computeState(currentTime, glitchScale), false);
+
+      for (let i = 0; i < frameCount; i++) {
+        const ft = (i / frameCount) * DURATION;
+        const st = renderFrame(stageCtx, ft, glitchScale);
+        updateHUD(st);
+
+        scaleBuf.ctx.drawImage(stageCanvas, 0, 0, gifSize, gifSize);
+        const imgData = scaleBuf.ctx.getImageData(0, 0, gifSize, gifSize);
+        indexedFrames.push(quantize(imgData.data));
+
+        if (i % 4 === 0 || i === frameCount - 1) {
+          const pct = ((i + 1) / frameCount) * 82;
+          setExportUi(true, `Rendering GIF frame ${i + 1} / ${frameCount}…`, pct);
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+
+      setExportUi(true, 'Encoding GIF89a LZW stream…', 90);
+      await new Promise((r) => setTimeout(r, 20));
+
+      const gifBytes = encodeGif89a(indexedFrames, gifSize, gifSize, palette, delayCs);
+      const blob = new Blob([gifBytes], { type: 'image/gif' });
+      triggerDownload(blob, 'shoreline-moon-glitch.gif');
+
+      setExportUi(false);
+      seekTo(savedTime);
+      setPlaying(wasPlaying);
+    });
+
+    // Expose a tiny debug/inspection handle on window for deterministic keyframe verification
+    window.__shorelineApp = {
+      seek: (sec) => { setPlaying(false); seekTo(sec); },
+      play: () => setPlaying(true),
+      pause: () => setPlaying(false),
+      setGlitch: (val) => {
+        glitchScale = val;
+        glitchSlider.value = String(Math.round(val * 100));
+        glitchVal.textContent = `${glitchSlider.value}%`;
+        const st = renderFrame(stageCtx, currentTime, glitchScale);
+        updateHUD(st);
+      },
+      testGifEncodeSmall: () => {
+        // Quick verification helper to test LZW encoder integrity on 4 frames at 128x128
+        const s = 128;
+        const buf = makeBuffer(s, s);
+        const pal = buildScenePalette();
+        const q = createQuantizer(pal);
+        const frames = [];
+        for (const tVal of [0.0, 3.2, 6.6, 8.5]) {
+          renderFrame(stageCtx, tVal, 1.0);
+          buf.ctx.drawImage(stageCanvas, 0, 0, s, s);
+          frames.push(q(buf.ctx.getImageData(0, 0, s, s).data));
+        }
+        const bytes = encodeGif89a(frames, s, s, pal, 5);
+        return { byteLength: bytes.length, header: String.fromCharCode(...bytes.slice(0, 6)), trailer: bytes[bytes.length - 1] };
+      }
+    };
+
+    // Mute ambient preview bed smoothly if user switches tabs (unless exporting)
+    document.addEventListener('visibilitychange', () => {
+      if (isExporting) return;
+      soundEngine.updateContinuous(computeState(currentTime, glitchScale), isPlaying && !document.hidden);
+    });
+
+    // Initial render + start loop
+    const initSt = renderFrame(stageCtx, 0, glitchScale);
+    updateHUD(initSt);
+    requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>
